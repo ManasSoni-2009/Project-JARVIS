@@ -107,8 +107,20 @@ def _make_llm(model: str | None = None, temperature: float = 0.1) -> Any:
             default_headers=s.openrouter_headers,
         )
 
-    setattr(llm, "provider", s.llm_provider)
-    setattr(llm, "model_name", getattr(llm, "model", model))
+    def _safe_setattr(obj, name, val):
+        try:
+            setattr(obj, name, val)
+        except Exception:
+            try:
+                object.__setattr__(obj, name, val)
+            except Exception:
+                try:
+                    obj.__dict__[name] = val
+                except Exception:
+                    pass
+
+    _safe_setattr(llm, "provider", s.llm_provider)
+    _safe_setattr(llm, "model_name", getattr(llm, "model", model))
     return llm
 
 
