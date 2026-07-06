@@ -1233,23 +1233,27 @@
           options.mimeType = 'audio/webm';
         }
 
+        var audioChunks = [];
         mediaRecorder = new MediaRecorder(stream, options);
 
         mediaRecorder.ondataavailable = function (e) {
-          if (e.data.size > 0 && ws && ws.readyState === WebSocket.OPEN) {
-            e.data.arrayBuffer().then(function (buf) {
-              ws.send(buf);
-            });
+          if (e.data.size > 0) {
+            audioChunks.push(e.data);
           }
         };
 
         mediaRecorder.onstop = function () {
           stream.getTracks().forEach(function (t) { t.stop(); });
           mediaStream = null;
+          if (audioChunks.length > 0 && ws && ws.readyState === WebSocket.OPEN) {
+            var blob = new Blob(audioChunks, { type: options.mimeType || 'audio/webm' });
+            blob.arrayBuffer().then(function (buf) {
+              ws.send(buf);
+            });
+          }
         };
 
-        // Send chunks every 250ms for streaming
-        mediaRecorder.start(250);
+        mediaRecorder.start();
         console.log('[mic] recording started');
       })
       .catch(function (err) {

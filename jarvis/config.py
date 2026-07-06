@@ -87,9 +87,9 @@ class Settings(BaseSettings):
     def flash_model(self) -> str:
         """Auto-select the best fast model for the active provider."""
         models = {
-            "google": "gemini-3.5-flash",
-            "openai": "gpt-5",
-            "anthropic": "claude-sonnet-5-20250514",
+            "google": "gemini-2.5-flash",
+            "openai": "gpt-4o-mini",
+            "anthropic": "claude-3-5-sonnet-latest",
             "openrouter": self.chat_model,
         }
         return models[self.llm_provider]

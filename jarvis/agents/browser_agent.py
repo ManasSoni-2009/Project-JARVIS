@@ -14,6 +14,39 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def _make_browser_llm(temperature: float = 0.2) -> Any:
+    """Create a native browser-use LLM matching the active provider."""
+    from jarvis.config import get_settings
+
+    s = get_settings()
+    provider = s.llm_provider
+    model = s.flash_model
+
+    if provider == "google":
+        from browser_use.llm.google.chat import ChatGoogle
+        if model == "gemini-3.5-flash" or not model:
+            model = "gemini-2.5-flash"
+        return ChatGoogle(model=model, api_key=s.gemini_api_key, temperature=temperature)
+    elif provider == "openai":
+        from browser_use.llm.openai.chat import ChatOpenAI
+        if model == "gpt-5" or not model:
+            model = "gpt-4o"
+        return ChatOpenAI(model=model, api_key=s.openai_api_key, temperature=temperature)
+    elif provider == "anthropic":
+        from browser_use.llm.anthropic.chat import ChatAnthropic
+        if not model or model.startswith("claude-sonnet-5"):
+            model = "claude-3-5-sonnet-latest"
+        return ChatAnthropic(model=model, api_key=s.anthropic_api_key, temperature=temperature)
+    else:
+        from browser_use.llm.openai.chat import ChatOpenAI
+        return ChatOpenAI(
+            model=s.chat_model or "openai/gpt-4o",
+            api_key=s.openrouter_api_key,
+            base_url=s.openrouter_base_url,
+            temperature=temperature,
+        )
+
+
 class BrowserAgent:
     """Wraps the browser-use Agent to execute web tasks.
 
@@ -31,18 +64,16 @@ class BrowserAgent:
         """
         from browser_use import Agent as BrowserUseAgent
 
-        from jarvis.brain.supervisor import _make_llm
-
         logger.info("Browser agent task: '%s'", task)
 
-        # Use the multi-provider LLM -- browser agent needs a capable model
-        llm = _make_llm(temperature=0.2)
+        # Use the native browser-use LLM wrapper
+        llm = _make_browser_llm(temperature=0.2)
 
         try:
             agent = BrowserUseAgent(
                 task=task,
                 llm=llm,
-                use_vision=False,
+                use_vision=True,
                 max_actions_per_step=5,
             )
             result = await agent.run(max_steps=15)
