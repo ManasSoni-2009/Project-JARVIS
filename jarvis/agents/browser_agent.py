@@ -14,7 +14,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def _make_browser_llm(temperature: float = 0.2) -> Any:
+def _make_browser_llm(temperature: float = 0.2, is_fallback: bool = False) -> Any:
     """Create a native browser-use LLM matching the active provider."""
     from jarvis.config import get_settings
 
@@ -26,16 +26,22 @@ def _make_browser_llm(temperature: float = 0.2) -> Any:
         from browser_use.llm.google.chat import ChatGoogle
         if model == "gemini-3.5-flash" or not model:
             model = "gemini-2.5-flash"
+        if is_fallback:
+            model = "gemini-2.0-flash" if model == "gemini-2.5-flash" else "gemini-flash-lite-latest"
         return ChatGoogle(model=model, api_key=s.gemini_api_key, temperature=temperature)
     elif provider == "openai":
         from browser_use.llm.openai.chat import ChatOpenAI
         if model == "gpt-5" or not model:
             model = "gpt-4o"
+        if is_fallback:
+            model = "gpt-4o-mini"
         return ChatOpenAI(model=model, api_key=s.openai_api_key, temperature=temperature)
     elif provider == "anthropic":
         from browser_use.llm.anthropic.chat import ChatAnthropic
         if not model or model.startswith("claude-sonnet-5"):
             model = "claude-3-5-sonnet-latest"
+        if is_fallback:
+            model = "claude-3-5-haiku-latest"
         return ChatAnthropic(model=model, api_key=s.anthropic_api_key, temperature=temperature)
     else:
         from browser_use.llm.openai.chat import ChatOpenAI
@@ -66,17 +72,19 @@ class BrowserAgent:
 
         logger.info("Browser agent task: '%s'", task)
 
-        # Use the native browser-use LLM wrapper
-        llm = _make_browser_llm(temperature=0.2)
+        # Use the native browser-use LLM wrapper with automatic fallback for rate limits
+        llm = _make_browser_llm(temperature=0.2, is_fallback=False)
+        fallback_llm = _make_browser_llm(temperature=0.2, is_fallback=True)
 
         try:
             agent = BrowserUseAgent(
                 task=task,
                 llm=llm,
+                fallback_llm=fallback_llm,
                 use_vision=True,
                 max_actions_per_step=5,
             )
-            result = await agent.run(max_steps=15)
+            result = await agent.run(max_steps=25)
 
             # Robust result extraction with multiple fallbacks
             final_res = result.final_result()
