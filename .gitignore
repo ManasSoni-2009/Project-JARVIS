@@ -1,0 +1,54 @@
+# ============================================================
+# J.A.R.V.I.S -- Git Ignore
+# ============================================================
+
+# Environment & secrets (NEVER commit)
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Database
+*.db
+jarvis_memory.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Cache directories
+D:/AI_Cache/
+*.cache
+
+# Logs
+*.log
+
+# Compiled models
+*.onnx
+*.bin
+*.pt
+
+# Playwright browsers (downloaded separately)
+playwright-browsers/

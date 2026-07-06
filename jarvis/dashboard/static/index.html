@@ -1,0 +1,1315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>J.A.R.V.I.S v2.0</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Reset & Base ─────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #0a0a0a;
+      --surface:    #141414;
+      --surface2:   #1a1a1a;
+      --border:     #252525;
+      --border-lt:  #2e2e2e;
+      --text:       #e4e4e7;
+      --text-dim:   #71717a;
+      --text-muted: #52525b;
+      --cyan:       #22d3ee;
+      --cyan-dim:   rgba(34,211,238,0.15);
+      --cyan-glow:  rgba(34,211,238,0.4);
+      --blue-tint:  rgba(56,189,248,0.06);
+      --warm-tint:  rgba(251,191,36,0.06);
+      --green:      #4ade80;
+      --yellow:     #facc15;
+      --red:        #f87171;
+      --orange:     #fb923c;
+      --sidebar-w:  260px;
+      --bottombar-h: 72px;
+      --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    html, body {
+      height: 100%;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Layout Shell ─────────────────────────────────────────────── */
+    .app {
+      display: flex;
+      height: 100vh;
+      position: relative;
+    }
+
+    /* ── Sidebar ──────────────────────────────────────────────────── */
+    .sidebar {
+      width: var(--sidebar-w);
+      min-width: var(--sidebar-w);
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      transition: margin-left var(--transition), opacity var(--transition);
+      z-index: 50;
+      overflow: hidden;
+    }
+    .sidebar.collapsed {
+      margin-left: calc(-1 * var(--sidebar-w));
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .sidebar-header {
+      padding: 20px 20px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .sidebar-brand {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      color: var(--text);
+    }
+    .sidebar-brand span {
+      color: var(--cyan);
+    }
+    .sidebar-version {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 400;
+      margin-top: 2px;
+    }
+    .sidebar-close {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background var(--transition), color var(--transition);
+    }
+    .sidebar-close:hover {
+      background: var(--surface2);
+      color: var(--text);
+    }
+
+    .sidebar-section-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      padding: 20px 20px 8px;
+    }
+
+    .agent-list {
+      padding: 0 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .agent-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      transition: background var(--transition);
+      cursor: default;
+    }
+    .agent-item:hover {
+      background: var(--surface2);
+    }
+    .agent-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      flex-shrink: 0;
+      transition: background 0.3s, box-shadow 0.3s;
+    }
+    .agent-dot.online  { background: var(--green);  box-shadow: 0 0 6px var(--green); }
+    .agent-dot.busy    { background: var(--yellow); box-shadow: 0 0 6px var(--yellow); }
+    .agent-dot.error   { background: var(--red);    box-shadow: 0 0 6px var(--red); }
+    .agent-name {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+      flex: 1;
+    }
+    .agent-status-text {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .sidebar-spacer { flex: 1; }
+
+    .sidebar-footer {
+      padding: 12px;
+      border-top: 1px solid var(--border);
+    }
+    .settings-btn {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      padding: 10px 12px;
+      border: none;
+      background: none;
+      color: var(--text-dim);
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background var(--transition), color var(--transition);
+    }
+    .settings-btn:hover {
+      background: var(--surface2);
+      color: var(--text);
+    }
+    .settings-btn svg { flex-shrink: 0; }
+
+    /* ── Main Content ─────────────────────────────────────────────── */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      position: relative;
+    }
+
+    /* ── Top Bar ──────────────────────────────────────────────────── */
+    .topbar {
+      height: 52px;
+      min-height: 52px;
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      gap: 12px;
+    }
+    .menu-btn {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      padding: 6px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background var(--transition), color var(--transition);
+    }
+    .menu-btn:hover {
+      background: var(--surface2);
+      color: var(--text);
+    }
+    .topbar-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .topbar-spacer { flex: 1; }
+    .connection-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-muted);
+      padding: 4px 10px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+    }
+    .connection-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      transition: background 0.3s, box-shadow 0.3s;
+    }
+    .connection-dot.connected { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .connection-dot.error     { background: var(--red);   box-shadow: 0 0 6px var(--red); }
+
+    /* ── Chat Area ────────────────────────────────────────────────── */
+    .chat-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 0;
+      display: flex;
+      flex-direction: column;
+      scroll-behavior: smooth;
+    }
+    .chat-area::-webkit-scrollbar { width: 6px; }
+    .chat-area::-webkit-scrollbar-track { background: transparent; }
+    .chat-area::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    .chat-container {
+      max-width: 720px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 0 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      flex: 1;
+      justify-content: flex-end;
+    }
+
+    .chat-welcome {
+      text-align: center;
+      padding: 80px 20px 40px;
+      flex-shrink: 0;
+    }
+    .chat-welcome h2 {
+      font-size: 22px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+    .chat-welcome p {
+      font-size: 14px;
+      color: var(--text-dim);
+      line-height: 1.6;
+    }
+
+    /* ── Message Bubbles ──────────────────────────────────────────── */
+    .msg {
+      display: flex;
+      flex-direction: column;
+      animation: msgFadeIn 0.3s ease-out;
+      max-width: 85%;
+    }
+    @keyframes msgFadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .msg.user {
+      align-self: flex-end;
+      align-items: flex-end;
+    }
+    .msg.jarvis {
+      align-self: flex-start;
+      align-items: flex-start;
+    }
+
+    .msg-sender {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+      padding: 0 2px;
+    }
+    .msg.user .msg-sender { color: #a8a29e; }
+
+    .msg-bubble {
+      padding: 12px 16px;
+      border-radius: 14px;
+      font-size: 14px;
+      line-height: 1.6;
+      word-break: break-word;
+    }
+    .msg.user .msg-bubble {
+      background: var(--warm-tint);
+      border: 1px solid rgba(251,191,36,0.12);
+      border-bottom-right-radius: 4px;
+      color: #e7e5e4;
+    }
+    .msg.jarvis .msg-bubble {
+      background: var(--blue-tint);
+      border: 1px solid rgba(56,189,248,0.1);
+      border-bottom-left-radius: 4px;
+      color: var(--text);
+    }
+
+    .msg-meta {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-top: 4px;
+      padding: 0 2px;
+    }
+
+    .thinking-indicator {
+      display: flex;
+      gap: 4px;
+      padding: 14px 18px;
+      align-items: center;
+    }
+    .thinking-indicator span {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--cyan);
+      opacity: 0.4;
+      animation: thinkBounce 1.2s ease-in-out infinite;
+    }
+    .thinking-indicator span:nth-child(2) { animation-delay: 0.15s; }
+    .thinking-indicator span:nth-child(3) { animation-delay: 0.3s; }
+    @keyframes thinkBounce {
+      0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
+      30% { opacity: 1; transform: translateY(-4px); }
+    }
+
+    /* ── Bottom Bar ───────────────────────────────────────────────── */
+    .bottombar {
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }
+    .input-wrapper {
+      max-width: 720px;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 6px 6px 6px 18px;
+      transition: border-color var(--transition);
+    }
+    .input-wrapper:focus-within {
+      border-color: #3f3f46;
+    }
+
+    #text-input {
+      flex: 1;
+      background: none;
+      border: none;
+      outline: none;
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      min-width: 0;
+    }
+    #text-input::placeholder { color: var(--text-muted); }
+
+    /* VAD toggle */
+    .vad-toggle {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .vad-label {
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--text-muted);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .toggle-track {
+      width: 32px;
+      height: 18px;
+      border-radius: 9px;
+      background: #333;
+      position: relative;
+      cursor: pointer;
+      transition: background var(--transition);
+      flex-shrink: 0;
+    }
+    .toggle-track.on {
+      background: var(--cyan);
+    }
+    .toggle-thumb {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #fff;
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      transition: transform var(--transition);
+    }
+    .toggle-track.on .toggle-thumb {
+      transform: translateX(14px);
+    }
+
+    /* Mic button */
+    .mic-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 2px solid var(--border-lt);
+      background: var(--surface2);
+      color: var(--text-dim);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      flex-shrink: 0;
+      position: relative;
+    }
+    .mic-btn:hover {
+      border-color: #444;
+      color: var(--text);
+    }
+    .mic-btn.recording {
+      border-color: var(--cyan);
+      color: var(--cyan);
+      box-shadow: 0 0 0 4px var(--cyan-dim), 0 0 20px var(--cyan-glow);
+      animation: micPulse 1.5s ease-in-out infinite;
+    }
+    @keyframes micPulse {
+      0%, 100% { box-shadow: 0 0 0 4px var(--cyan-dim), 0 0 20px rgba(34,211,238,0.2); }
+      50%      { box-shadow: 0 0 0 8px rgba(34,211,238,0.08), 0 0 30px rgba(34,211,238,0.35); }
+    }
+
+    /* Send button */
+    .send-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      border: none;
+      background: var(--cyan);
+      color: #000;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity var(--transition), transform var(--transition);
+      flex-shrink: 0;
+    }
+    .send-btn:hover {
+      opacity: 0.85;
+      transform: scale(1.05);
+    }
+    .send-btn:active {
+      transform: scale(0.95);
+    }
+
+    /* ── Waveform overlay (while recording) ───────────────────────── */
+    .waveform-bar {
+      display: none;
+      align-items: center;
+      gap: 2px;
+      height: 24px;
+      padding: 0 8px;
+    }
+    .waveform-bar.active {
+      display: flex;
+    }
+    .waveform-bar .bar {
+      width: 3px;
+      border-radius: 2px;
+      background: var(--cyan);
+      animation: waveAnim 0.6s ease-in-out infinite alternate;
+    }
+    @keyframes waveAnim {
+      0%   { height: 4px; opacity: 0.4; }
+      100% { height: 20px; opacity: 1; }
+    }
+
+    /* ── Settings Modal ───────────────────────────────────────────── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.65);
+      backdrop-filter: blur(6px);
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s;
+    }
+    .modal-overlay.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      width: 460px;
+      max-width: 90vw;
+      max-height: 85vh;
+      overflow-y: auto;
+      transform: translateY(20px) scale(0.97);
+      transition: transform 0.25s;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.5);
+    }
+    .modal-overlay.open .modal {
+      transform: translateY(0) scale(1);
+    }
+
+    .modal-header {
+      padding: 24px 24px 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .modal-title {
+      font-size: 17px;
+      font-weight: 600;
+    }
+    .modal-close {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 6px;
+      display: flex;
+      transition: color var(--transition);
+    }
+    .modal-close:hover { color: var(--text); }
+
+    .modal-body {
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .field-group label {
+      display: block;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-dim);
+      margin-bottom: 6px;
+      letter-spacing: 0.02em;
+    }
+    .field-group input,
+    .field-group select {
+      width: 100%;
+      padding: 10px 14px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      outline: none;
+      transition: border-color var(--transition);
+    }
+    .field-group input:focus,
+    .field-group select:focus {
+      border-color: #3f3f46;
+    }
+    .field-group input::placeholder { color: var(--text-muted); }
+    .field-group .hint {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+    .field-group .hint .check { color: var(--green); }
+
+    .modal-footer {
+      padding: 0 24px 24px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+    .btn-secondary {
+      padding: 9px 18px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: none;
+      color: var(--text-dim);
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background var(--transition), color var(--transition);
+    }
+    .btn-secondary:hover { background: var(--surface2); color: var(--text); }
+
+    .btn-primary {
+      padding: 9px 22px;
+      border-radius: 10px;
+      border: none;
+      background: var(--cyan);
+      color: #000;
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity var(--transition);
+    }
+    .btn-primary:hover { opacity: 0.85; }
+
+    /* ── Toast ─────────────────────────────────────────────────────── */
+    .toast {
+      position: fixed;
+      bottom: 90px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      padding: 10px 20px;
+      border-radius: 10px;
+      font-size: 13px;
+      color: var(--text);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s, transform 0.3s;
+      z-index: 300;
+    }
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* ── Scrollbar for modal ──────────────────────────────────────── */
+    .modal::-webkit-scrollbar { width: 6px; }
+    .modal::-webkit-scrollbar-track { background: transparent; }
+    .modal::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* ── Responsive ────────────────────────────────────────────────── */
+    @media (max-width: 768px) {
+      .sidebar {
+        position: fixed;
+        top: 0; left: 0; bottom: 0;
+        z-index: 100;
+        box-shadow: 4px 0 24px rgba(0,0,0,0.5);
+      }
+      .sidebar.collapsed {
+        margin-left: calc(-1 * var(--sidebar-w));
+      }
+      .vad-label { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ── Sidebar ─────────────────────────────────────────── -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div>
+        <div class="sidebar-brand">J.A.R.V.I.S<span>.</span></div>
+        <div class="sidebar-version">v2.0.0</div>
+      </div>
+      <button class="sidebar-close" id="sidebar-close" aria-label="Close sidebar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+    </div>
+
+    <div class="sidebar-section-label">Agents</div>
+    <div class="agent-list">
+      <div class="agent-item" data-agent="chat">
+        <div class="agent-dot" id="dot-chat"></div>
+        <span class="agent-name">Chat</span>
+        <span class="agent-status-text" id="status-chat">Idle</span>
+      </div>
+      <div class="agent-item" data-agent="browser">
+        <div class="agent-dot" id="dot-browser"></div>
+        <span class="agent-name">Browser</span>
+        <span class="agent-status-text" id="status-browser">Idle</span>
+      </div>
+      <div class="agent-item" data-agent="os">
+        <div class="agent-dot" id="dot-os"></div>
+        <span class="agent-name">OS / OpenClaw</span>
+        <span class="agent-status-text" id="status-os">Idle</span>
+      </div>
+      <div class="agent-item" data-agent="mcp">
+        <div class="agent-dot" id="dot-mcp"></div>
+        <span class="agent-name">MCP</span>
+        <span class="agent-status-text" id="status-mcp">Idle</span>
+      </div>
+      <div class="agent-item" data-agent="obsidian">
+        <div class="agent-dot" id="dot-obsidian"></div>
+        <span class="agent-name">Obsidian</span>
+        <span class="agent-status-text" id="status-obsidian">Idle</span>
+      </div>
+    </div>
+
+    <div class="sidebar-spacer"></div>
+
+    <div class="sidebar-footer">
+      <button class="settings-btn" id="open-settings">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Settings
+      </button>
+    </div>
+  </aside>
+
+  <!-- ── Main Content ────────────────────────────────────── -->
+  <div class="main">
+
+    <!-- Top Bar -->
+    <div class="topbar">
+      <button class="menu-btn" id="menu-btn" aria-label="Toggle sidebar">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <span class="topbar-title">Chat</span>
+      <div class="topbar-spacer"></div>
+      <div class="connection-badge">
+        <div class="connection-dot" id="conn-dot"></div>
+        <span id="conn-text">Connecting</span>
+      </div>
+    </div>
+
+    <!-- Chat Messages -->
+    <div class="chat-area" id="chat-area">
+      <div class="chat-container" id="chat-container">
+        <div class="chat-welcome" id="welcome-msg">
+          <h2>Good to see you.</h2>
+          <p>Type a message or press the mic button to start talking.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Bar -->
+    <div class="bottombar">
+      <div class="input-wrapper">
+        <!-- Waveform (visible when recording) -->
+        <div class="waveform-bar" id="waveform"></div>
+
+        <input type="text" id="text-input" placeholder="Message J.A.R.V.I.S..." autocomplete="off" />
+
+        <div class="vad-toggle">
+          <span class="vad-label">VAD</span>
+          <div class="toggle-track" id="vad-toggle" role="switch" aria-checked="false" tabindex="0">
+            <div class="toggle-thumb"></div>
+          </div>
+        </div>
+
+        <button class="mic-btn" id="mic-btn" aria-label="Push to talk">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+        </button>
+
+        <button class="send-btn" id="send-btn" aria-label="Send message">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── Settings Modal ────────────────────────────────────── -->
+<div class="modal-overlay" id="settings-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Settings</span>
+      <button class="modal-close" id="modal-close" aria-label="Close settings">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="field-group">
+        <label for="sel-provider">LLM Provider</label>
+        <select id="sel-provider">
+          <option value="google">Google (Gemini)</option>
+          <option value="openai">OpenAI</option>
+          <option value="anthropic">Anthropic</option>
+          <option value="openrouter">OpenRouter</option>
+        </select>
+      </div>
+      <div class="field-group">
+        <label for="key-gemini">Gemini API Key</label>
+        <input type="password" id="key-gemini" placeholder="Enter Gemini API key" />
+        <div class="hint" id="hint-gemini"></div>
+      </div>
+      <div class="field-group">
+        <label for="key-openai">OpenAI API Key</label>
+        <input type="password" id="key-openai" placeholder="Enter OpenAI API key" />
+        <div class="hint" id="hint-openai"></div>
+      </div>
+      <div class="field-group">
+        <label for="key-anthropic">Anthropic API Key</label>
+        <input type="password" id="key-anthropic" placeholder="Enter Anthropic API key" />
+        <div class="hint" id="hint-anthropic"></div>
+      </div>
+      <div class="field-group">
+        <label for="key-openrouter">OpenRouter API Key</label>
+        <input type="password" id="key-openrouter" placeholder="Enter OpenRouter API key" />
+        <div class="hint" id="hint-openrouter"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" id="settings-cancel">Cancel</button>
+      <button class="btn-primary" id="settings-save">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Toast ──────────────────────────────────────────────── -->
+<div class="toast" id="toast"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ── DOM refs ────────────────────────────────────────────────────────────
+  var sidebar     = document.getElementById('sidebar');
+  var menuBtn     = document.getElementById('menu-btn');
+  var sidebarClose= document.getElementById('sidebar-close');
+  var chatArea    = document.getElementById('chat-area');
+  var chatContainer = document.getElementById('chat-container');
+  var welcomeMsg  = document.getElementById('welcome-msg');
+  var textInput   = document.getElementById('text-input');
+  var sendBtn     = document.getElementById('send-btn');
+  var micBtn      = document.getElementById('mic-btn');
+  var waveformEl  = document.getElementById('waveform');
+  var vadToggle   = document.getElementById('vad-toggle');
+  var connDot     = document.getElementById('conn-dot');
+  var connText    = document.getElementById('conn-text');
+  var settingsModal = document.getElementById('settings-modal');
+  var toastEl     = document.getElementById('toast');
+
+  // ── State ───────────────────────────────────────────────────────────────
+  var ws = null;
+  var reconnectTimer = null;
+  var isRecording = false;
+  var mediaRecorder = null;
+  var mediaStream = null;
+  var vadEnabled = false;
+  var audioContext = null;
+  var messageCount = 0;
+
+  // ── Sidebar toggle ──────────────────────────────────────────────────────
+  menuBtn.addEventListener('click', function () {
+    sidebar.classList.toggle('collapsed');
+  });
+  sidebarClose.addEventListener('click', function () {
+    sidebar.classList.add('collapsed');
+  });
+
+  // ── Settings modal ─────────────────────────────────────────────────────
+  document.getElementById('open-settings').addEventListener('click', function () {
+    loadSettings();
+    settingsModal.classList.add('open');
+  });
+  document.getElementById('modal-close').addEventListener('click', closeSettingsModal);
+  document.getElementById('settings-cancel').addEventListener('click', closeSettingsModal);
+  settingsModal.addEventListener('click', function (e) {
+    if (e.target === settingsModal) closeSettingsModal();
+  });
+
+  function closeSettingsModal() {
+    settingsModal.classList.remove('open');
+  }
+
+  function loadSettings() {
+    fetch('/api/settings')
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.provider) {
+          document.getElementById('sel-provider').value = data.provider;
+        }
+        setKeyHint('hint-gemini', data.has_gemini_key);
+        setKeyHint('hint-openai', data.has_openai_key);
+        setKeyHint('hint-anthropic', data.has_anthropic_key);
+        setKeyHint('hint-openrouter', data.has_openrouter_key);
+      })
+      .catch(function () { /* settings endpoint not available */ });
+  }
+
+  function setKeyHint(id, hasKey) {
+    var el = document.getElementById(id);
+    if (hasKey) {
+      el.innerHTML = '<span class="check">&#10003;</span> Key configured';
+    } else {
+      el.textContent = 'Not set';
+    }
+  }
+
+  document.getElementById('settings-save').addEventListener('click', function () {
+    var payload = {
+      provider: document.getElementById('sel-provider').value
+    };
+    var geminiKey = document.getElementById('key-gemini').value.trim();
+    var openaiKey = document.getElementById('key-openai').value.trim();
+    var anthropicKey = document.getElementById('key-anthropic').value.trim();
+    var openrouterKey = document.getElementById('key-openrouter').value.trim();
+
+    if (geminiKey) payload.gemini_api_key = geminiKey;
+    if (openaiKey) payload.openai_api_key = openaiKey;
+    if (anthropicKey) payload.anthropic_api_key = anthropicKey;
+    if (openrouterKey) payload.openrouter_api_key = openrouterKey;
+
+    fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+      .then(function (r) {
+        if (r.ok) {
+          showToast('Settings saved');
+          closeSettingsModal();
+          // clear password fields
+          document.getElementById('key-gemini').value = '';
+          document.getElementById('key-openai').value = '';
+          document.getElementById('key-anthropic').value = '';
+          document.getElementById('key-openrouter').value = '';
+        } else {
+          showToast('Failed to save settings');
+        }
+      })
+      .catch(function () {
+        showToast('Network error');
+      });
+  });
+
+  // ── Toast ──────────────────────────────────────────────────────────────
+  var toastTimeout = null;
+  function showToast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimeout);
+    toastTimeout = setTimeout(function () {
+      toastEl.classList.remove('show');
+    }, 2500);
+  }
+
+  // ── VAD toggle ─────────────────────────────────────────────────────────
+  vadToggle.addEventListener('click', function () {
+    vadEnabled = !vadEnabled;
+    vadToggle.classList.toggle('on', vadEnabled);
+    vadToggle.setAttribute('aria-checked', String(vadEnabled));
+  });
+  vadToggle.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      vadToggle.click();
+    }
+  });
+
+  // ── WebSocket ──────────────────────────────────────────────────────────
+  function connect() {
+    var proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    ws = new WebSocket(proto + '://' + location.host + '/ws');
+    ws.binaryType = 'arraybuffer';
+
+    ws.onopen = function () {
+      setConnection('connected', 'Connected');
+      clearTimeout(reconnectTimer);
+      console.log('[ws] connected');
+    };
+
+    ws.onclose = function () {
+      setConnection('', 'Reconnecting...');
+      reconnectTimer = setTimeout(connect, 3000);
+      console.log('[ws] disconnected, retrying in 3s');
+    };
+
+    ws.onerror = function () {
+      setConnection('error', 'Error');
+    };
+
+    ws.onmessage = function (evt) {
+      if (typeof evt.data === 'string') {
+        try {
+          var msg = JSON.parse(evt.data);
+          handleMessage(msg);
+        } catch (e) {
+          console.log('[ws] failed to parse message');
+        }
+      }
+    };
+  }
+
+  function setConnection(cls, text) {
+    connDot.className = 'connection-dot' + (cls ? ' ' + cls : '');
+    connText.textContent = text;
+  }
+
+  // ── Message handling ───────────────────────────────────────────────────
+  var thinkingEl = null;
+
+  function handleMessage(msg) {
+    switch (msg.type) {
+      case 'response':
+        removeThinking();
+        if (msg.user_text) addMessage('user', msg.user_text);
+        if (msg.response) addMessage('jarvis', msg.response, msg.round_trip_ms);
+        break;
+
+      case 'state':
+        handleState(msg);
+        break;
+
+      case 'tts_audio':
+        playAudioBase64(msg.data);
+        break;
+
+      case 'error':
+        removeThinking();
+        addMessage('jarvis', 'Error: ' + (msg.message || 'Unknown error'));
+        break;
+    }
+  }
+
+  // ── State handling ─────────────────────────────────────────────────────
+  var AGENT_MAP = {
+    chat:       'chat',
+    browser:    'browser',
+    os_control: 'os',
+    mcp_tool:   'mcp',
+    obsidian:   'obsidian'
+  };
+
+  function handleState(msg) {
+    var state = msg.state;
+
+    // Update connection badge text
+    if (state === 'THINKING') {
+      showThinking();
+    } else if (state === 'SPEAKING') {
+      removeThinking();
+    }
+
+    // Highlight active agent
+    var agents = ['chat', 'browser', 'os', 'mcp', 'obsidian'];
+    agents.forEach(function (a) {
+      var dot = document.getElementById('dot-' + a);
+      var statusEl = document.getElementById('status-' + a);
+      dot.className = 'agent-dot';
+      statusEl.textContent = 'Idle';
+    });
+
+    if (msg.intent && AGENT_MAP[msg.intent]) {
+      var agentKey = AGENT_MAP[msg.intent];
+      var dot = document.getElementById('dot-' + agentKey);
+      var statusEl = document.getElementById('status-' + agentKey);
+      if (state === 'THINKING') {
+        dot.classList.add('busy');
+        statusEl.textContent = 'Thinking';
+      } else if (state === 'SPEAKING') {
+        dot.classList.add('online');
+        statusEl.textContent = 'Speaking';
+      } else {
+        dot.classList.add('online');
+        statusEl.textContent = state;
+      }
+    }
+  }
+
+  function showThinking() {
+    if (thinkingEl) return;
+    hideWelcome();
+    thinkingEl = document.createElement('div');
+    thinkingEl.className = 'msg jarvis';
+    thinkingEl.innerHTML =
+      '<div class="msg-sender">J.A.R.V.I.S</div>' +
+      '<div class="msg-bubble"><div class="thinking-indicator"><span></span><span></span><span></span></div></div>';
+    chatContainer.appendChild(thinkingEl);
+    scrollToBottom();
+  }
+
+  function removeThinking() {
+    if (thinkingEl) {
+      thinkingEl.remove();
+      thinkingEl = null;
+    }
+  }
+
+  // ── Chat messages ──────────────────────────────────────────────────────
+  function hideWelcome() {
+    if (welcomeMsg) {
+      welcomeMsg.style.display = 'none';
+    }
+  }
+
+  function addMessage(role, text, roundTripMs) {
+    if (!text) return;
+    hideWelcome();
+    messageCount++;
+
+    var div = document.createElement('div');
+    div.className = 'msg ' + role;
+
+    var sender = role === 'user' ? 'You' : 'J.A.R.V.I.S';
+    var metaStr = '';
+    if (roundTripMs) {
+      metaStr = '<div class="msg-meta">' + roundTripMs + 'ms</div>';
+    }
+
+    div.innerHTML =
+      '<div class="msg-sender">' + sender + '</div>' +
+      '<div class="msg-bubble">' + escapeHtml(text) + '</div>' +
+      metaStr;
+
+    chatContainer.appendChild(div);
+    scrollToBottom();
+  }
+
+  function scrollToBottom() {
+    requestAnimationFrame(function () {
+      chatArea.scrollTop = chatArea.scrollHeight;
+    });
+  }
+
+  function escapeHtml(text) {
+    var div = document.createElement('div');
+    div.appendChild(document.createTextNode(text));
+    return div.innerHTML;
+  }
+
+  // ── Send text ──────────────────────────────────────────────────────────
+  function sendText() {
+    var text = textInput.value.trim();
+    if (!text || !ws || ws.readyState !== WebSocket.OPEN) return;
+    ws.send(JSON.stringify({ type: 'text_input', text: text }));
+    addMessage('user', text);
+    textInput.value = '';
+  }
+
+  sendBtn.addEventListener('click', sendText);
+  textInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendText();
+    }
+  });
+
+  // ── Mic / Push-to-Talk ─────────────────────────────────────────────────
+  micBtn.addEventListener('click', function () {
+    if (isRecording) {
+      stopRecording();
+    } else {
+      startRecording();
+    }
+  });
+
+  function startRecording() {
+    if (isRecording) return;
+
+    navigator.mediaDevices.getUserMedia({ audio: true })
+      .then(function (stream) {
+        mediaStream = stream;
+        isRecording = true;
+        micBtn.classList.add('recording');
+        showWaveform(true);
+
+        var options = {};
+        if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+          options.mimeType = 'audio/webm;codecs=opus';
+        } else if (MediaRecorder.isTypeSupported('audio/webm')) {
+          options.mimeType = 'audio/webm';
+        }
+
+        mediaRecorder = new MediaRecorder(stream, options);
+
+        mediaRecorder.ondataavailable = function (e) {
+          if (e.data.size > 0 && ws && ws.readyState === WebSocket.OPEN) {
+            e.data.arrayBuffer().then(function (buf) {
+              ws.send(buf);
+            });
+          }
+        };
+
+        mediaRecorder.onstop = function () {
+          stream.getTracks().forEach(function (t) { t.stop(); });
+          mediaStream = null;
+        };
+
+        // Send chunks every 250ms for streaming
+        mediaRecorder.start(250);
+        console.log('[mic] recording started');
+      })
+      .catch(function (err) {
+        console.log('[mic] getUserMedia error: ' + err.message);
+        showToast('Microphone access denied');
+      });
+  }
+
+  function stopRecording() {
+    if (!isRecording) return;
+    isRecording = false;
+    micBtn.classList.remove('recording');
+    showWaveform(false);
+
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      mediaRecorder.stop();
+    }
+    console.log('[mic] recording stopped');
+  }
+
+  // ── Waveform animation ─────────────────────────────────────────────────
+  function showWaveform(active) {
+    waveformEl.innerHTML = '';
+    if (active) {
+      for (var i = 0; i < 16; i++) {
+        var bar = document.createElement('div');
+        bar.className = 'bar';
+        bar.style.animationDelay = (i * 0.05) + 's';
+        waveformEl.appendChild(bar);
+      }
+      waveformEl.classList.add('active');
+      textInput.style.display = 'none';
+    } else {
+      waveformEl.classList.remove('active');
+      textInput.style.display = '';
+    }
+  }
+
+  // ── TTS Audio Playback ─────────────────────────────────────────────────
+  function playAudioBase64(base64Data) {
+    if (!audioContext) {
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+
+    var binaryStr = atob(base64Data);
+    var len = binaryStr.length;
+    var bytes = new Uint8Array(len);
+    for (var i = 0; i < len; i++) {
+      bytes[i] = binaryStr.charCodeAt(i);
+    }
+
+    audioContext.decodeAudioData(bytes.buffer)
+      .then(function (audioBuffer) {
+        var source = audioContext.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(audioContext.destination);
+        source.start(0);
+      })
+      .catch(function (err) {
+        console.log('[audio] decode error: ' + err.message);
+      });
+  }
+
+  // ── Load chat history ──────────────────────────────────────────────────
+  function loadHistory() {
+    fetch('/api/history')
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.turns && data.turns.length > 0) {
+          data.turns.forEach(function (t) {
+            if (t.user_text) addMessage('user', t.user_text);
+            if (t.final_response) addMessage('jarvis', t.final_response);
+          });
+        }
+      })
+      .catch(function () { /* history not available yet */ });
+  }
+
+  // ── Init ───────────────────────────────────────────────────────────────
+  connect();
+  loadHistory();
+
+})();
+</script>
+
+</body>
+</html>

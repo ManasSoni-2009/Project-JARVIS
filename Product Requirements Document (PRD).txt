@@ -1,0 +1,50 @@
+Product Requirements Document (PRD): Project Antigravity
+Objective: Build a real-time, voice-controlled, multi-agent AI system capable of autonomous web browsing, local operating system navigation, and seamless external integrations.
+
+1. Hardware Reality Check & Compute Strategy
+Your machine (Intel Core i5-12450HX, RTX 2050 4GB VRAM, 12GB System RAM) is a solid workstation for development, but it presents strict physical limits for a multi-agent AI.
+
+To achieve "Jarvis-level" autonomy, the system needs deep reasoning and vision capabilities (to "see" your screen and read the DOM).
+
+The Local Trap: You could theoretically squeeze a highly quantized 3-billion-parameter model (like Qwen2.5-3B) into 4GB VRAM using llama.cpp. However, Windows 11, the Python environment, Pipecat audio streaming, and an active automated browser will easily consume 7-8GB of your system RAM. The moment the AI tries to process a screenshot, your system will swap memory, crawl to a halt, and introduce massive latency. Furthermore, a 3B model is not smart enough for reliable Computer Use.
+
+The Optimal Path (OpenRouter): This is definitively the better choice. By pointing your framework to OpenRouter's free-tier API endpoints (utilizing models like google/gemini-1.5-flash-exp for vision/speed or meta-llama/llama-3-8b-instruct:free for fast text routing), you offload the massive compute burden. Your laptop's hardware is then freed up to do what it does best: run the actual software, stream the audio, and execute the automated clicks with zero latency.
+
+2. System Architecture & Components
+To keep the entire stack free and open-source, we will orchestrate the following python-based components:
+
+Transport Layer (Ears & Mouth): Pipecat
+
+Handles real-time WebSocket audio streaming to prevent the "walkie-talkie" delay.
+
+Uses a lightweight local Speech-to-Text (like a tiny whisper model or a free API) to instantly transcribe your voice.
+
+Supervisor Router (The Brain): LangGraph
+
+A control loop that evaluates your transcribed voice command and decides which specialist agent needs to take over.
+
+Execution Agents (The Hands):
+
+Browser Use (browser-use): An agent specifically tuned to navigate the DOM, input text, and scrape data dynamically from your everyday browser.
+
+OS Agent (OpenClaw or PyAutoGUI wrapper): Handles absolute screen coordinates, mouse clicks, and keystrokes inside Windows applications.
+
+Integration Layer (The Nervous System): Model Context Protocol (MCP)
+
+Instead of hardcoding APIs, you spin up local MCP servers. The LangGraph supervisor will automatically discover these.
+
+Implementation: You can easily attach your GitHub repositories, Vercel deployments, or Make automation scenarios via MCP, allowing Antigravity to manage your existing technical infrastructure directly.
+
+3. Phased Implementation Plan
+Phase 1: The Backbone. Set up Pipecat and establish a clean connection to OpenRouter. Verify that you can speak into the mic, hit the free Gemini Flash endpoint, and hear a synthesized response back under 800ms.
+
+Phase 2: The Web Specialist. Integrate browser-use. Hardcode a text prompt (skipping voice for now) asking it to go to a website and retrieve specific data. Watch it take control of your local Chromium instance.
+
+Phase 3: The Supervisor. Wrap LangGraph around both systems. Speak a command, let the supervisor classify whether it requires a conversational response or a web-browsing action, and route it accordingly.
+
+Phase 4: The Tools. Plug in MCP servers to give the AI read/write access to your local files and external cloud platforms.
+
+The Workflow Guide
+Understanding how the agents coordinate is crucial before writing the code. When you speak a command, the data does not just go to one monolithic AI. It is chunked, routed, and passed between specialized environments.
+
+The interactive visualizer below breaks down exactly how your voice command travels through the Antigravity architecture, from the microphone all the way to a physical click on your screen or a triggered cloud workflow.
