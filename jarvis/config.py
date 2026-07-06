@@ -68,8 +68,11 @@ class Settings(BaseSettings):
     whisper_compute_type: str = "int8"
 
     # -- TTS (Kokoro) --------------------------------------------------
-    tts_voice: str = "af_heart"
-    tts_lang: str = "en"
+    tts_voice: str = "bm_george"
+    tts_lang: str = "en-gb"
+
+    # -- OS Control Backend --------------------------------------------
+    os_backend: Literal["gemini_vision", "openclaw"] = "gemini_vision"
 
     # -- Dashboard -----------------------------------------------------
     dashboard_host: str = "0.0.0.0"

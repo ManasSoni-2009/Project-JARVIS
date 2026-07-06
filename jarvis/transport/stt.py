@@ -88,7 +88,7 @@ class STT:
         Returns a TranscriptionResult with text, language, timing, and confidence.
         """
         if self._model is None:
-            raise RuntimeError("STT model not loaded. Call load() first.")
+            await self.load()
 
         t0 = time.perf_counter()
 
@@ -132,7 +132,7 @@ class STT:
         passing it to the Whisper model.
         """
         if self._model is None:
-            raise RuntimeError("STT model not loaded. Call load() first.")
+            await self.load()
 
         t0 = time.perf_counter()
 

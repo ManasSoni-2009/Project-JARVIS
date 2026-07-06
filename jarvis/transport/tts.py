@@ -44,8 +44,8 @@ class KokoroTTS:
 
     def __init__(
         self,
-        voice: str = "af_heart",
-        lang_code: str = "a",
+        voice: str = "bm_george",
+        lang_code: str = "b",
     ) -> None:
         self.voice = voice
         self.lang_code = lang_code

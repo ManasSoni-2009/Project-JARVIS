@@ -137,6 +137,7 @@ def create_app(pipeline=None) -> FastAPI:
             "has_openrouter_key": bool(s.openrouter_api_key),
             "tts_voice": s.tts_voice,
             "tts_lang": s.tts_lang,
+            "os_backend": s.os_backend,
         }
 
     @app.post("/api/settings")
@@ -156,6 +157,7 @@ def create_app(pipeline=None) -> FastAPI:
             "openrouter_api_key": "OPENROUTER_API_KEY",
             "tts_voice": "TTS_VOICE",
             "tts_lang": "TTS_LANG",
+            "os_backend": "OS_BACKEND",
         }
 
         for req_key, env_key in key_map.items():
@@ -190,6 +192,7 @@ async def _process_text_input(pipeline, websocket: WebSocket, text: str) -> None
         # Send text response
         await manager.broadcast({
             "type": "response",
+            "source": "text",
             "user_text": text,
             "response": response,
         })
@@ -232,6 +235,7 @@ async def _process_audio_input(
         # Send text response
         await manager.broadcast({
             "type": "response",
+            "source": "audio",
             "user_text": user_text,
             "response": response,
         })

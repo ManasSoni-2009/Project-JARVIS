@@ -40,8 +40,26 @@ class ObsidianMemory:
     async def query(self, natural_query: str) -> str:
         """
         Parse a natural language query and return relevant note content.
-        Supports: tag search, keyword search, note name lookup.
+        Supports: daily note ops, deep RAG analysis, tag search, keyword search, note name lookup.
         """
+        query_lower = natural_query.lower()
+
+        # Check for Daily Note intents
+        if "daily" in query_lower or "today" in query_lower:
+            write_words = ("add", "append", "write", "log", "note down", "record", "put")
+            if any(w in query_lower for w in write_words):
+                content = re.sub(r"^(.*?)(?:to my daily note|to today's note|in my daily note|that)\s*", "", natural_query, flags=re.IGNORECASE).strip()
+                if not content or content == natural_query:
+                    content = natural_query
+                return await self.append_to_daily_note(content)
+            elif any(r in query_lower for r in ("read", "show", "what", "open", "get", "view")):
+                return await self.get_daily_note()
+
+        # Check for Deep RAG analytical intents
+        rag_words = ("analyze", "synthesize", "summarize", "why", "how", "compare", "explain", "relationship", "connect", "deep")
+        if any(w in query_lower.split() for w in rag_words) or len(natural_query.split()) > 8:
+            return await self.deep_rag_query(natural_query)
+
         parsed = self._parse_query(natural_query)
         logger.debug(f"Obsidian query parsed: {parsed}")
 
@@ -71,28 +89,109 @@ class ObsidianMemory:
         return await asyncio.get_event_loop().run_in_executor(None, _find_and_read)
 
     async def write_note(self, title: str, content: str, append: bool = False) -> str:
-        """Create or append to a note."""
+        """Create or append to a note, automatically applying Wiki-linking."""
         def _write():
             filename = self.vault / f"{title}.md"
+            linked_content = self._auto_link_sync(content)
             if append and filename.exists():
                 existing = filename.read_text(encoding="utf-8")
                 filename.write_text(
-                    existing + f"\n\n---\n*JARVIS added {datetime.now():%Y-%m-%d %H:%M}*\n{content}",
+                    existing + f"\n\n---\n*JARVIS added {datetime.now():%Y-%m-%d %H:%M}*\n{linked_content}",
                     encoding="utf-8",
                 )
                 return f"Appended to '{title}.md'"
             else:
                 frontmatter = f"---\ntitle: {title}\ncreated: {datetime.now():%Y-%m-%d}\ntags: [jarvis]\n---\n\n"
-                filename.write_text(frontmatter + content, encoding="utf-8")
+                filename.write_text(frontmatter + linked_content, encoding="utf-8")
                 return f"Created note '{title}.md'"
 
         return await asyncio.get_event_loop().run_in_executor(None, _write)
+
+    async def get_daily_note(self) -> str:
+        """Read today's daily note."""
+        def _read_daily():
+            today = datetime.now().strftime("%Y-%m-%d")
+            candidates = [self.vault / "Daily" / f"{today}.md", self.vault / f"{today}.md"]
+            for path in candidates:
+                if path.exists():
+                    return path.read_text(encoding="utf-8")
+            return f"No daily note found for today ({today})."
+        return await asyncio.get_event_loop().run_in_executor(None, _read_daily)
+
+    async def append_to_daily_note(self, content: str) -> str:
+        """Create or append to today's daily note, applying Wiki-linking."""
+        def _write_daily():
+            today = datetime.now().strftime("%Y-%m-%d")
+            daily_dir = self.vault / "Daily"
+            daily_dir.mkdir(parents=True, exist_ok=True)
+            path = daily_dir / f"{today}.md"
+            
+            linked_content = self._auto_link_sync(content)
+            timestamp = datetime.now().strftime("%H:%M")
+            
+            if path.exists():
+                existing = path.read_text(encoding="utf-8")
+                path.write_text(f"{existing}\n\n- **{timestamp}**: {linked_content}", encoding="utf-8")
+                return f"Appended to daily note Daily/{today}.md"
+            else:
+                frontmatter = f"---\ntitle: Daily Note - {today}\ncreated: {today}\ntags: [daily, jarvis]\n---\n\n# Daily Log - {today}\n\n- **{timestamp}**: {linked_content}"
+                path.write_text(frontmatter, encoding="utf-8")
+                return f"Created daily note Daily/{today}.md"
+        return await asyncio.get_event_loop().run_in_executor(None, _write_daily)
+
+    async def deep_rag_query(self, question: str) -> str:
+        """Perform a deep analytical query across the vault using RAG + LLM synthesis."""
+        logger.info("Executing deep RAG query: '%s'", question)
+        results = await asyncio.get_event_loop().run_in_executor(
+            None, self._keyword_search, question
+        )
+        if not results:
+            def _recent_notes():
+                all_files = sorted(self._all_notes(), key=lambda p: p.stat().st_mtime, reverse=True)[:5]
+                return [(f, self._excerpt(f, max_chars=400)) for f in all_files]
+            results = await asyncio.get_event_loop().run_in_executor(None, _recent_notes)
+
+        context_blocks = []
+        for note_path, excerpt in results[:6]:
+            context_blocks.append(f"### Note: {note_path.stem}\n{excerpt}\n")
+        context_str = "\n".join(context_blocks)
+
+        from jarvis.brain.supervisor import _make_llm, extract_text
+        from langchain_core.messages import HumanMessage, SystemMessage
+
+        llm = _make_llm(temperature=0.2)
+        system = """You are J.A.R.V.I.S, analyzing the user's Obsidian Second Brain vault.
+Use the provided note excerpts to answer the user's analytical question comprehensively.
+If the exact answer isn't in the notes, synthesize insights from the available context and clearly state what is known."""
+        
+        messages = [
+            SystemMessage(content=system),
+            HumanMessage(content=f"Context from Vault:\n{context_str}\n\nUser Question: {question}")
+        ]
+        try:
+            resp = await llm.ainvoke(messages)
+            return extract_text(resp)
+        except Exception as e:
+            logger.error("Deep RAG synthesis error: %s", e)
+            return f"Retrieved {len(results)} note(s), but LLM synthesis failed: {e}\n\nExcerpts:\n" + context_str[:1000]
 
     async def search(self, keyword: str) -> list[tuple[Path, str]]:
         """Search for notes containing a keyword."""
         return await asyncio.get_event_loop().run_in_executor(
             None, self._keyword_search, keyword
         )
+
+    def _auto_link_sync(self, content: str) -> str:
+        """Automatically wrap note titles appearing in content with [[WikiLinks]]."""
+        try:
+            ignore_stems = {"daily", "note", "notes", "todo", "index", "jarvis", "log", "test", "demo", "work", "home", "draft"}
+            note_stems = [f.stem for f in self._all_notes() if len(f.stem) > 2 and f.stem.lower() not in ignore_stems]
+            for stem in sorted(note_stems, key=len, reverse=True):
+                pattern = rf"(?<!\[\[)\b({re.escape(stem)})\b(?!\]\])"
+                content = re.sub(pattern, r"[[\1]]", content, flags=re.IGNORECASE)
+        except Exception as e:
+            logger.warning("Auto link error: %s", e)
+        return content
 
     # ── Private helpers ───────────────────────────────────────────────────────
 

@@ -63,7 +63,10 @@ async def main() -> None:
     await supervisor.build()
 
     # Build STT (Faster-Whisper)
+    console.print("[cyan]->[/cyan] Loading Faster-Whisper STT model...")
     stt = STT.from_settings()
+    await stt.load()
+    console.print("[green][OK][/green] Faster-Whisper STT ready")
 
     # Build TTS (Kokoro -- local neural voice)
     console.print("[cyan]->[/cyan] Loading Kokoro TTS model...")

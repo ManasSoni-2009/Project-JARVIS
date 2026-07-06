@@ -826,6 +826,22 @@
         </select>
       </div>
       <div class="field-group">
+        <label for="sel-voice">TTS Voice</label>
+        <select id="sel-voice">
+          <option value="bm_george">British Male (JARVIS - bm_george)</option>
+          <option value="af_heart">American Female (af_heart)</option>
+          <option value="am_adam">American Male (am_adam)</option>
+          <option value="bf_emma">British Female (bf_emma)</option>
+        </select>
+      </div>
+      <div class="field-group">
+        <label for="sel-os-backend">OS Control Backend</label>
+        <select id="sel-os-backend">
+          <option value="gemini_vision">Gemini Vision (PyAutoGUI Loop)</option>
+          <option value="openclaw">OpenClaw CLI</option>
+        </select>
+      </div>
+      <div class="field-group">
         <label for="key-gemini">Gemini API Key</label>
         <input type="password" id="key-gemini" placeholder="Enter Gemini API key" />
         <div class="hint" id="hint-gemini"></div>
@@ -917,6 +933,14 @@
         if (data.provider) {
           document.getElementById('sel-provider').value = data.provider;
         }
+        if (data.tts_voice) {
+          var selVoice = document.getElementById('sel-voice');
+          if (selVoice) selVoice.value = data.tts_voice;
+        }
+        if (data.os_backend) {
+          var selOs = document.getElementById('sel-os-backend');
+          if (selOs) selOs.value = data.os_backend;
+        }
         setKeyHint('hint-gemini', data.has_gemini_key);
         setKeyHint('hint-openai', data.has_openai_key);
         setKeyHint('hint-anthropic', data.has_anthropic_key);
@@ -936,7 +960,9 @@
 
   document.getElementById('settings-save').addEventListener('click', function () {
     var payload = {
-      provider: document.getElementById('sel-provider').value
+      provider: document.getElementById('sel-provider').value,
+      tts_voice: document.getElementById('sel-voice').value,
+      os_backend: document.getElementById('sel-os-backend').value
     };
     var geminiKey = document.getElementById('key-gemini').value.trim();
     var openaiKey = document.getElementById('key-openai').value.trim();
@@ -1041,7 +1067,7 @@
     switch (msg.type) {
       case 'response':
         removeThinking();
-        if (msg.user_text) addMessage('user', msg.user_text);
+        if (msg.user_text && msg.source === 'audio') addMessage('user', msg.user_text);
         if (msg.response) addMessage('jarvis', msg.response, msg.round_trip_ms);
         break;
 
@@ -1075,8 +1101,6 @@
     // Update connection badge text
     if (state === 'THINKING') {
       showThinking();
-    } else if (state === 'SPEAKING') {
-      removeThinking();
     }
 
     // Highlight active agent

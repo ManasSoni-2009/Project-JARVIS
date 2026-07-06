@@ -63,7 +63,7 @@ def _make_llm(model: str | None = None, temperature: float = 0.1) -> Any:
     if s.llm_provider == "google":
         from langchain_google_genai import ChatGoogleGenerativeAI
 
-        return ChatGoogleGenerativeAI(
+        llm = ChatGoogleGenerativeAI(
             model=model,
             google_api_key=key,
             temperature=temperature,
@@ -71,10 +71,10 @@ def _make_llm(model: str | None = None, temperature: float = 0.1) -> Any:
             timeout=30.0,
         )
 
-    if s.llm_provider == "openai":
+    elif s.llm_provider == "openai":
         from langchain_openai import ChatOpenAI
 
-        return ChatOpenAI(
+        llm = ChatOpenAI(
             model=model,
             openai_api_key=key,
             temperature=temperature,
@@ -82,10 +82,10 @@ def _make_llm(model: str | None = None, temperature: float = 0.1) -> Any:
             request_timeout=30.0,
         )
 
-    if s.llm_provider == "anthropic":
+    elif s.llm_provider == "anthropic":
         from langchain_anthropic import ChatAnthropic
 
-        return ChatAnthropic(
+        llm = ChatAnthropic(
             model=model,
             anthropic_api_key=key,
             temperature=temperature,
@@ -93,18 +93,23 @@ def _make_llm(model: str | None = None, temperature: float = 0.1) -> Any:
             timeout=30.0,
         )
 
-    # openrouter -- uses ChatOpenAI with custom base URL
-    from langchain_openai import ChatOpenAI
+    else:
+        # openrouter -- uses ChatOpenAI with custom base URL
+        from langchain_openai import ChatOpenAI
 
-    return ChatOpenAI(
-        model=model,
-        openai_api_key=key,
-        openai_api_base=s.openrouter_base_url,
-        temperature=temperature,
-        max_retries=4,
-        request_timeout=30.0,
-        default_headers=s.openrouter_headers,
-    )
+        llm = ChatOpenAI(
+            model=model,
+            openai_api_key=key,
+            openai_api_base=s.openrouter_base_url,
+            temperature=temperature,
+            max_retries=4,
+            request_timeout=30.0,
+            default_headers=s.openrouter_headers,
+        )
+
+    setattr(llm, "provider", s.llm_provider)
+    setattr(llm, "model_name", getattr(llm, "model", model))
+    return llm
 
 
 class Supervisor:
@@ -234,7 +239,13 @@ class Supervisor:
 
     async def _browser_node(self, state: AgentState) -> dict:
         """Handle web browser tasks."""
-        output = await self._browser_agent.execute(state["user_text"])
+        from jarvis.dashboard.pill import show_pill, hide_pill
+
+        show_pill("Browser Task")
+        try:
+            output = await self._browser_agent.execute(state["user_text"])
+        finally:
+            hide_pill()
         return {"agent_output": output, "tool_calls_made": state["tool_calls_made"] + ["browser"]}
 
     async def _os_node(self, state: AgentState) -> dict:
