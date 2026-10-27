@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 300" width="100%" height="300">
+  <defs>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="5" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+    <style>
+      .icon-bg { fill: #0b1114; stroke: #00d2ff; stroke-width: 2; rx: 15; }
+      .icon-stroke { fill: none; stroke: #00d2ff; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+      .icon-fill { fill: #00d2ff; }
+      .feature-title { font-family: 'Courier New', monospace; font-size: 18px; font-weight: bold; fill: #ffffff; }
+      .feature-desc { font-family: sans-serif; font-size: 12px; fill: #88bbcc; }
+      .pulse { filter: url(#glow); }
+    </style>
+  </defs>
+
+  <rect width="100%" height="100%" fill="#040608" />
+
+  <g transform="translate(0, 0)">
+    <!-- Feature 1: Multi-Agent -->
+    <g transform="translate(20, 20)">
+      <rect width="360" height="120" class="icon-bg" />
+      <g transform="translate(20, 20)">
+        <circle cx="40" cy="40" r="30" fill="#002233" stroke="#005577" stroke-width="2" />
+        <!-- Network Nodes -->
+        <circle cx="40" cy="20" r="5" class="icon-fill pulse">
+          <animate attributeName="r" values="4;6;4" dur="1s" repeatCount="indefinite" />
+        </circle>
+        <circle cx="20" cy="55" r="5" class="icon-fill" />
+        <circle cx="60" cy="55" r="5" class="icon-fill" />
+        <path d="M 40 20 L 20 55 M 40 20 L 60 55 M 20 55 L 60 55" class="icon-stroke" stroke-width="2" opacity="0.5" />
+      </g>
+      <text x="120" y="45" class="feature-title">Multi-Provider LLM</text>
+      <text x="120" y="70" class="feature-desc">Gemini, GPT-5, Claude, OpenRouter.</text>
+      <text x="120" y="90" class="feature-desc">Hot-swap brains instantly.</text>
+    </g>
+
+    <!-- Feature 2: Voice -->
+    <g transform="translate(420, 20)">
+      <rect width="360" height="120" class="icon-bg" />
+      <g transform="translate(20, 20)">
+        <circle cx="40" cy="40" r="30" fill="#002233" stroke="#005577" stroke-width="2" />
+        <path d="M 30 30 L 30 50 M 40 20 L 40 60 M 50 30 L 50 50" class="icon-stroke">
+          <animate attributeName="d" values="M 30 30 L 30 50 M 40 20 L 40 60 M 50 30 L 50 50; M 30 20 L 30 60 M 40 30 L 40 50 M 50 20 L 50 60; M 30 30 L 30 50 M 40 20 L 40 60 M 50 30 L 50 50" dur="0.5s" repeatCount="indefinite" />
+        </path>
+      </g>
+      <text x="120" y="45" class="feature-title">Real-time Voice Interface</text>
+      <text x="120" y="70" class="feature-desc">Faster-Whisper STT + Kokoro TTS (82M).</text>
+      <text x="120" y="90" class="feature-desc">Near-zero latency conversational AI.</text>
+    </g>
+
+    <!-- Feature 3: Web Automation -->
+    <g transform="translate(20, 160)">
+      <rect width="360" height="120" class="icon-bg" />
+      <g transform="translate(20, 20)">
+        <circle cx="40" cy="40" r="30" fill="#002233" stroke="#005577" stroke-width="2" />
+        <!-- Browser Window Icon -->
+        <rect x="20" y="25" width="40" height="30" rx="2" class="icon-stroke" stroke-width="2" />
+        <line x1="20" y1="35" x2="60" y2="35" class="icon-stroke" stroke-width="2" />
+        <!-- Animated cursor -->
+        <path d="M 45 45 L 55 55 L 50 55 L 52 60 L 48 60 L 46 55 L 42 55 Z" class="icon-fill">
+          <animate attributeName="transform" type="translate" values="0,0; -10,-10; 0,0" dur="2s" repeatCount="indefinite" />
+        </path>
+      </g>
+      <text x="120" y="45" class="feature-title">Autonomous Web Browsing</text>
+      <text x="120" y="70" class="feature-desc">Playwright + Browser-use agent.</text>
+      <text x="120" y="90" class="feature-desc">Searches, clicks, and extracts data.</text>
+    </g>
+
+    <!-- Feature 4: OS Control -->
+    <g transform="translate(420, 160)">
+      <rect width="360" height="120" class="icon-bg" />
+      <g transform="translate(20, 20)">
+        <circle cx="40" cy="40" r="30" fill="#002233" stroke="#005577" stroke-width="2" />
+        <!-- Desktop / Terminal Icon -->
+        <rect x="20" y="25" width="40" height="25" class="icon-stroke" stroke-width="2" />
+        <path d="M 25 35 L 30 40 L 25 45" class="icon-stroke" stroke-width="2" />
+        <line x1="32" y1="45" x2="40" y2="45" class="icon-stroke" stroke-width="2">
+          <animate attributeName="opacity" values="1;0;1" dur="1s" repeatCount="indefinite" />
+        </line>
+        <line x1="30" y1="60" x2="50" y2="60" class="icon-stroke" stroke-width="2" />
+      </g>
+      <text x="120" y="45" class="feature-title">Windows OS / MCP Tools</text>
+      <text x="120" y="70" class="feature-desc">OpenClaw integration &amp; Model Context.</text>
+      <text x="120" y="90" class="feature-desc">Controls local apps and filesystems.</text>
+    </g>
+  </g>
+</svg>
