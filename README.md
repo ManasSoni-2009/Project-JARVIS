@@ -1,6 +1,14 @@
 <div align="center">
 
-# J.A.R.V.I.S
+<picture>
+  <img alt="JARVIS Hero Banner" src="./assets/hero.svg">
+</picture>
+
+<br>
+
+<picture>
+  <img alt="JARVIS Arc Reactor" src="./assets/arc-reactor.svg" width="150" height="150">
+</picture>
 
 ### Just A Rather Very Intelligent System
 
@@ -24,12 +32,16 @@ Unlike chatbots that just talk, J.A.R.V.I.S **acts** -- it can open your Chrome 
 
 ### Key Features
 
-| Feature | Description |
+<div align="center">
+  <picture>
+    <img alt="Animated Features Overview" src="./assets/features.svg" width="100%">
+  </picture>
+</div>
+
+<br>
+
+| Additional Capability | Details |
 |:---|:---|
-| **Multi-Provider LLMs** | Supports Gemini 3.5 Flash, GPT-5, Claude Sonnet 5, and OpenRouter models. Switch providers from the UI. |
-| **Voice Interface** | ChatGPT-style push-to-talk with local Kokoro TTS (82M params, runs on CPU, Hindi + English) |
-| **Autonomous Web Browsing** | Powered by `browser-use` + Playwright. Searches, navigates, extracts, fills forms. |
-| **Windows Desktop Control** | OpenClaw integration + PyAutoGUI fallback. Opens apps, clicks UI, types, manages files. |
 | **Codex-Style UI** | Minimal dark dashboard with collapsible agent sidebar, settings modal, and real-time status |
 | **Obsidian Integration** | Reads and searches your Obsidian vault as a second brain |
 | **MCP Tools** | Filesystem and GitHub operations via Model Context Protocol |
@@ -39,63 +51,11 @@ Unlike chatbots that just talk, J.A.R.V.I.S **acts** -- it can open your Chrome 
 
 ## Architecture
 
-```mermaid
-graph TB
-    subgraph Browser["Browser (localhost:7779)"]
-        UI["Codex-Style UI"]
-        MIC["Push-to-Talk Mic"]
-        AUDIO["Audio Playback"]
-    end
-
-    subgraph Server["Python Backend"]
-        WS["WebSocket Server"]
-        STT["Faster-Whisper STT"]
-        TTS["Kokoro TTS (82M)"]
-
-        subgraph Brain["LangGraph Supervisor"]
-            CLASSIFY["Intent Classifier"]
-            CHAT["Chat Agent"]
-            BROWSER["Browser Agent"]
-            OS["OS Agent (OpenClaw)"]
-            MCP_A["MCP Agent"]
-            OBS["Obsidian Agent"]
-            POLISH["Response Polisher"]
-        end
-    end
-
-    subgraph External["External Services"]
-        LLM["LLM Provider<br/>(Gemini/GPT/Claude)"]
-        CHROME["Chrome Browser"]
-        DESKTOP["Windows Desktop"]
-        VAULT["Obsidian Vault"]
-        GH["GitHub API"]
-    end
-
-    MIC -->|"WebSocket audio"| WS
-    UI -->|"WebSocket text"| WS
-    WS --> STT
-    STT --> CLASSIFY
-    CLASSIFY -->|chat| CHAT
-    CLASSIFY -->|browser| BROWSER
-    CLASSIFY -->|os_control| OS
-    CLASSIFY -->|mcp_tool| MCP_A
-    CLASSIFY -->|obsidian| OBS
-    CHAT --> POLISH
-    BROWSER --> POLISH
-    OS --> POLISH
-    MCP_A --> POLISH
-    OBS --> POLISH
-    POLISH --> TTS
-    TTS -->|"WAV audio"| WS
-    WS --> AUDIO
-
-    CHAT --> LLM
-    BROWSER --> CHROME
-    OS --> DESKTOP
-    MCP_A --> GH
-    OBS --> VAULT
-    CLASSIFY --> LLM
-```
+<div align="center">
+  <picture>
+    <img alt="Animated System Architecture Data Flow" src="./assets/architecture.svg" width="100%">
+  </picture>
+</div>
 
 ---
 
