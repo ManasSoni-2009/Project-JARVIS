@@ -3,7 +3,7 @@
 echo "Starting J.A.R.V.I.S Installation for macOS..."
 
 echo "Cloning the repository..."
-git clone https://github.com/YOUR_USERNAME/project-jarvis.git
+git clone https://github.com/ManasSOni-2009/project-jarvis.git
 cd project-jarvis
 
 echo "Installing uv..."
