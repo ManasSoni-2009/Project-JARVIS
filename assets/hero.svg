@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 200" width="100%" height="200">
+  <defs>
+    <!-- Background Grid -->
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#003344" stroke-width="1" opacity="0.4" />
+    </pattern>
+
+    <linearGradient id="textGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="50%" stop-color="#00d2ff" />
+      <stop offset="100%" stop-color="#ffffff" />
+    </linearGradient>
+
+    <!-- Scanline effect -->
+    <linearGradient id="scanline" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="rgba(0,210,255,0)" />
+      <stop offset="50%" stop-color="rgba(0,210,255,0.2)" />
+      <stop offset="100%" stop-color="rgba(0,210,255,0)" />
+    </linearGradient>
+  </defs>
+
+  <rect width="100%" height="100%" fill="#06090a" />
+  <rect width="100%" height="100%" fill="url(#grid)" />
+
+  <!-- Animated Scanline -->
+  <rect width="100%" height="20" fill="url(#scanline)">
+    <animate attributeName="y" values="-20;220" dur="4s" repeatCount="indefinite" />
+  </rect>
+
+  <!-- Futuristic bracket Left -->
+  <path d="M 50 40 L 30 40 L 30 160 L 50 160" fill="none" stroke="#00d2ff" stroke-width="3" opacity="0.8">
+    <animate attributeName="opacity" values="0.4;0.8;0.4" dur="3s" repeatCount="indefinite" />
+  </path>
+
+  <!-- Futuristic bracket Right -->
+  <path d="M 750 40 L 770 40 L 770 160 L 750 160" fill="none" stroke="#00d2ff" stroke-width="3" opacity="0.8">
+    <animate attributeName="opacity" values="0.4;0.8;0.4" dur="3s" repeatCount="indefinite" delay="1s" />
+  </path>
+
+  <!-- System initialization text -->
+  <text x="50" y="30" font-family="monospace" font-size="12" fill="#0088aa" letter-spacing="2">
+    SYSTEM.INIT // BOOT_SEQUENCE: ONLINE
+    <animate attributeName="opacity" values="0;1;1;0;0" keyTimes="0;0.1;0.8;0.9;1" dur="10s" repeatCount="indefinite" />
+  </text>
+
+  <text x="50" y="180" font-family="monospace" font-size="12" fill="#0088aa" letter-spacing="2">
+    MULTI-AGENT_FRAMEWORK.V2
+  </text>
+
+  <!-- Main Title -->
+  <g transform="translate(400, 110)">
+    <text x="0" y="0" font-family="'Courier New', Courier, monospace" font-size="72" font-weight="bold" fill="url(#textGrad)" text-anchor="middle" letter-spacing="10">
+      J.A.R.V.I.S
+    </text>
+    <!-- Glitch effect over text -->
+    <text x="2" y="-2" font-family="'Courier New', Courier, monospace" font-size="72" font-weight="bold" fill="#00d2ff" text-anchor="middle" letter-spacing="10" opacity="0.5" style="mix-blend-mode: screen;">
+      J.A.R.V.I.S
+      <animate attributeName="x" values="2;-2;3;-1;2" dur="0.2s" begin="2s" repeatCount="3" />
+      <animate attributeName="opacity" values="0;0.5;0" dur="0.2s" begin="2s" repeatCount="3" />
+    </text>
+  </g>
+
+  <!-- Typing Subtitle Effect -->
+  <g transform="translate(400, 140)">
+    <text x="0" y="0" font-family="sans-serif" font-size="18" fill="#aaddff" text-anchor="middle" letter-spacing="3" opacity="0.8">
+      Just A Rather Very Intelligent System
+    </text>
+  </g>
+
+  <!-- Decorative HUD lines -->
+  <path d="M 60 100 L 150 100" stroke="#005577" stroke-width="1" stroke-dasharray="5 5" />
+  <path d="M 650 100 L 740 100" stroke="#005577" stroke-width="1" stroke-dasharray="5 5" />
+
+  <!-- Blinking Cursor/Dot -->
+  <circle cx="700" cy="30" r="4" fill="#00ffcc">
+    <animate attributeName="opacity" values="1;0;1" dur="1s" repeatCount="indefinite" />
+  </circle>
+</svg>
