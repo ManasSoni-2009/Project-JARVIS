@@ -27,6 +27,10 @@ import { nusOrganizer } from "./server/nus/organizer.ts";
 import { JarvisPipeline } from "./server/transport/pipeline.ts";
 import { STT } from "./server/transport/stt.ts";
 import { JarvisTTS } from "./server/transport/tts.ts";
+import {
+  checkAndAutoUpdate,
+  getAutoUpdateStatus,
+} from "./server/updater.ts";
 
 const PORT = 3000;
 const HOST = "0.0.0.0";
@@ -88,15 +92,30 @@ async function startServer() {
     },
   });
 
+  // Run GitHub Auto-Update check non-blockingly on boot
+  void checkAndAutoUpdate({ applyUpdates: true }).then((status) => {
+    if (status.status === "updated") {
+      broadcast({
+        type: "auto_update",
+        status,
+      });
+    }
+  });
+
   httpServer.on("upgrade", (req, socket, head) => {
     const urlPath = req.url?.split("?")[0];
     if (urlPath === "/ws") {
       wss.handleUpgrade(req, socket, head, (ws) => {
         wss.emit("connection", ws, req);
       });
-    } else {
-      socket.destroy();
+      return;
     }
+    // Allow Vite HMR WebSocket upgrades to be handled by Vite's own listener
+    const proto = req.headers["sec-websocket-protocol"] || "";
+    if (proto.includes("vite-hmr") || urlPath === "/__vite_hmr") {
+      return;
+    }
+    socket.destroy();
   });
 
   wss.on("connection", (ws) => {
@@ -553,43 +572,78 @@ async function startServer() {
     const snapshot = agentDesktopEngine.getSnapshot();
     const sessions = await sessionMemory.listSessions();
 
+    const upd = getAutoUpdateStatus();
+
     res.json({
       ok: true,
       latencyMs: Math.max(1, Math.round(performance.now() - t0)),
+      autoUpdate: upd,
       checks: [
+        {
+          id: "updater",
+          label: "GitHub Auto-Updater (main)",
+          ok: true,
+          status: "ready",
+          detail: `${upd.currentCommit} · ${
+            upd.status === "updated"
+              ? `Updated ${upd.updatedFiles.length} file(s)`
+              : "Up to date"
+          }`,
+        },
         {
           id: "engine",
           label: "OpenJarvis 5-Primitive + Jev Reflex",
+          ok: true,
           status: "ready",
           detail: `${s.geminiModel} (${s.thinkingMode.toUpperCase()}) · <3ms Sys-1`,
         },
         {
           id: "voice",
           label: "Neural Voice Pipeline (TTS + STT)",
+          ok: true,
           status: s.ttsEnabled ? "ready" : "muted",
           detail: `${s.ttsVoice} (24kHz WAV + Web Speech Hybrid)`,
         },
         {
           id: "desktop",
           label: "agent-desktop @ref Tree",
+          ok: true,
           status: "ready",
           detail: `17 semantic nodes across ${snapshot.length} windows`,
         },
         {
           id: "vault",
           label: "Obsidian Second Brain Vault",
+          ok: true,
           status: "ready",
           detail: `${notes.length} markdown notes indexed`,
         },
         {
           id: "sessions",
           label: "Hedwig Persistent Memory",
+          ok: true,
           status: "ready",
           detail: `${sessions.length} threads · ${files.length} workspace files`,
         },
       ],
       keys,
     });
+  });
+
+  // ── GitHub Auto-Update Check & Hot-Sync Endpoints ─────────────────────────
+  app.get("/api/update/status", (_req, res) => {
+    res.json(getAutoUpdateStatus());
+  });
+
+  app.post("/api/update/check", async (_req, res) => {
+    try {
+      const status = await checkAndAutoUpdate({ applyUpdates: true });
+      res.json(status);
+    } catch (err) {
+      res.status(500).json({
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
   });
 
   app.get("/api/vault", async (_req, res) => {
@@ -845,7 +899,13 @@ async function startServer() {
 
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        hmr:
+          process.env.DISABLE_HMR === "true"
+            ? false
+            : { server: httpServer },
+      },
       appType: "spa",
     });
     app.use(vite.middlewares);

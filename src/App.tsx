@@ -73,6 +73,18 @@ interface DiagnosticCheckItem {
   detail: string;
 }
 
+interface AutoUpdateStatusItem {
+  repo: string;
+  branch: string;
+  currentCommit: string;
+  latestCommit: string;
+  status: "up_to_date" | "updated" | "update_available" | "checking" | "offline";
+  lastCheckedAt: string;
+  updatedFiles: string[];
+  latestCommitMessage: string;
+  message: string;
+}
+
 const MODEL_DROPDOWN_OPTIONS: StudioDropdownOption[] = [
   {
     value: "gemini-4-hydrogen",
@@ -340,6 +352,9 @@ export default function App() {
     DiagnosticCheckItem[]
   >([]);
   const [runningDiagnostics, setRunningDiagnostics] = useState(false);
+  const [autoUpdateStatus, setAutoUpdateStatus] =
+    useState<AutoUpdateStatusItem | null>(null);
+  const [checkingUpdates, setCheckingUpdates] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
   const wsRef = useRef<WebSocket | null>(null);
@@ -821,6 +836,13 @@ export default function App() {
       .then((data) => setSettings((prev) => ({ ...prev, ...data })))
       .catch(() => {});
 
+    fetch("/api/update/status")
+      .then((r) => r.json())
+      .then((data: AutoUpdateStatusItem) => {
+        if (data?.currentCommit) setAutoUpdateStatus(data);
+      })
+      .catch(() => {});
+
     return () => {
       disposed = true;
       if (reconnectTimerRef.current)
@@ -1248,12 +1270,32 @@ export default function App() {
       const data = await res.json();
       if (Array.isArray(data.checks)) {
         setDiagnosticsChecks(data.checks);
-        showToast("All 5 Studio subsystems verified ready");
+        if (data.autoUpdate) setAutoUpdateStatus(data.autoUpdate);
+        showToast("All 6 Studio subsystems verified ready");
       }
     } catch {
       showToast("Diagnostics check failed");
     } finally {
       setRunningDiagnostics(false);
+    }
+  };
+
+  const handleCheckGitHubUpdates = async () => {
+    setCheckingUpdates(true);
+    try {
+      const res = await fetch("/api/update/check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const data = (await res.json()) as AutoUpdateStatusItem;
+      if (data?.currentCommit) {
+        setAutoUpdateStatus(data);
+        showToast(data.message || `Synced with GitHub (${data.currentCommit})`);
+      }
+    } catch {
+      showToast("GitHub update check failed");
+    } finally {
+      setCheckingUpdates(false);
     }
   };
 
@@ -2268,6 +2310,29 @@ export default function App() {
                     </span>
                   ))}
                 </div>
+              </div>
+
+              {/* GitHub Auto-Update on Boot Status & Manual Sync */}
+              <div className="mb-4 p-3 rounded-[14px] bg-[#F5F5F7] dark:bg-[#101015] border border-black/[0.05] dark:border-white/[0.07] flex items-center justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[#1D1D1F] dark:text-zinc-200">
+                    <span className="w-1.5 h-1.5 rounded-full bg-sky-500" />
+                    <span>GitHub Auto-Updater (Boot & Hot-Sync)</span>
+                  </div>
+                  <div className="text-[10.5px] font-mono text-[#6E6E73] dark:text-zinc-400 truncate mt-0.5">
+                    {autoUpdateStatus
+                      ? `${autoUpdateStatus.message} (${autoUpdateStatus.currentCommit})`
+                      : "Checks ManasSoni-2009/Project-JARVIS on boot"}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCheckGitHubUpdates}
+                  disabled={checkingUpdates}
+                  className="studio-btn shrink-0 px-2.5 py-1.5 rounded-[9px] bg-black/[0.06] dark:bg-white/[0.08] hover:bg-black/[0.1] dark:hover:bg-white/[0.14] text-[11px] font-semibold text-[#1D1D1F] dark:text-zinc-200 cursor-pointer"
+                >
+                  {checkingUpdates ? "Syncing..." : "Check Updates"}
+                </button>
               </div>
 
               <div className="space-y-3.5 text-xs">
