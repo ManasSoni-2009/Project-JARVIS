@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 /**
  * J.A.R.V.I.S v3.0 - Self-Healing & Auto-Updating 1-Command Launcher
- * - Automatically checks GitHub (ManasSoni-2009/Project-JARVIS) on boot and updates changed files
- * - Repairs any esbuild/Vite peer version mismatch automatically
+ * - Dynamically syncs all project files from GitHub Tree API on boot (works for both git clone & Release ZIPs)
+ * - Self-heals any missing source files (e.g. new components) even if commit hashes match
+ * - Repairs any esbuild/Vite peer version mismatch and installs new npm dependencies automatically
  * - Pre-warms the server and Vite module graph before launching the browser (zero white screen)
  */
 import fs from "node:fs";
@@ -70,9 +71,82 @@ function getLocalCommit() {
   }
 }
 
+async function fetchFullRepoFileList() {
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
+    const res = await fetch(
+      `https://api.github.com/repos/${REPO}/git/trees/${BRANCH}?recursive=1`,
+      {
+        headers: {
+          Accept: "application/vnd.github+json",
+          "User-Agent": "Project-JARVIS-v3-BootUpdater",
+        },
+        signal: controller.signal,
+      }
+    );
+    clearTimeout(timer);
+    if (!res.ok) return CORE_SYNC_FILES;
+    const data = await res.json();
+    const tree = Array.isArray(data.tree) ? data.tree : [];
+    const discovered = tree
+      .filter(
+        (item) =>
+          item.type === "blob" &&
+          typeof item.path === "string" &&
+          !item.path.startsWith("data/") &&
+          !item.path.startsWith(".env") &&
+          (CORE_SYNC_FILES.includes(item.path) ||
+            item.path.startsWith("src/") ||
+            item.path.startsWith("server/") ||
+            item.path.startsWith("scripts/"))
+      )
+      .map((item) => item.path);
+    return Array.from(new Set([...CORE_SYNC_FILES, ...discovered]));
+  } catch {
+    return CORE_SYNC_FILES;
+  }
+}
+
+async function syncFilesFromGitHub(filePaths) {
+  let updatedCount = 0;
+  for (const relPath of filePaths) {
+    try {
+      const rawRes = await fetch(
+        `https://raw.githubusercontent.com/${REPO}/${BRANCH}/${relPath}`
+      );
+      if (!rawRes.ok) continue;
+      const remoteText = await rawRes.text();
+      const absPath = path.join(rootDir, relPath);
+      const localText = fs.existsSync(absPath)
+        ? fs.readFileSync(absPath, "utf-8")
+        : null;
+      if (localText !== remoteText) {
+        fs.mkdirSync(path.dirname(absPath), { recursive: true });
+        fs.writeFileSync(absPath, remoteText, "utf-8");
+        updatedCount++;
+      }
+    } catch {
+      // continue remaining files
+    }
+  }
+  return updatedCount;
+}
+
 async function autoUpdateFromGitHubOnBoot() {
   console.log("[1/4] Checking GitHub repository for latest J.A.R.V.I.S updates...");
   const localCommit = getLocalCommit();
+
+  // Always self-heal any missing core files immediately (even if version file says up to date)
+  const missingLocalFiles = CORE_SYNC_FILES.filter(
+    (relPath) => !fs.existsSync(path.join(rootDir, relPath))
+  );
+  if (missingLocalFiles.length > 0) {
+    console.log(
+      `      Restoring ${missingLocalFiles.length} missing file(s) from GitHub...`
+    );
+    await syncFilesFromGitHub(missingLocalFiles);
+  }
 
   try {
     const controller = new AbortController();
@@ -91,7 +165,7 @@ async function autoUpdateFromGitHubOnBoot() {
 
     if (!res.ok) {
       console.log(`      Using local build (${localCommit}).`);
-      return false;
+      return missingLocalFiles.length > 0;
     }
 
     const commitData = await res.json();
@@ -99,15 +173,15 @@ async function autoUpdateFromGitHubOnBoot() {
     const commitMsg =
       commitData.commit?.message?.split("\n")[0] || "Latest update";
 
-    if (!remoteShortSha) return false;
+    if (!remoteShortSha) return missingLocalFiles.length > 0;
 
-    if (localCommit === remoteShortSha) {
+    if (localCommit === remoteShortSha && missingLocalFiles.length === 0) {
       console.log(`      Up to date with GitHub (${remoteShortSha}: ${commitMsg})`);
       return false;
     }
 
     console.log(
-      `      New update detected on GitHub (${localCommit} -> ${remoteShortSha}): "${commitMsg}"`
+      `      Syncing update from GitHub (${localCommit} -> ${remoteShortSha}): "${commitMsg}"`
     );
 
     const hasGit = fs.existsSync(path.join(rootDir, ".git"));
@@ -134,32 +208,12 @@ async function autoUpdateFromGitHubOnBoot() {
         console.log(`      Successfully updated repository to ${remoteShortSha}.`);
         return true;
       } catch {
-        // Fall back to direct file sync if git pull fails
+        // Fall back to direct raw file sync
       }
     }
 
-    // Direct raw file downloader for Release ZIP folders without .git
-    let updatedCount = 0;
-    for (const relPath of CORE_SYNC_FILES) {
-      try {
-        const rawRes = await fetch(
-          `https://raw.githubusercontent.com/${REPO}/${BRANCH}/${relPath}`
-        );
-        if (!rawRes.ok) continue;
-        const remoteText = await rawRes.text();
-        const absPath = path.join(rootDir, relPath);
-        const localText = fs.existsSync(absPath)
-          ? fs.readFileSync(absPath, "utf-8")
-          : null;
-        if (localText !== remoteText) {
-          fs.mkdirSync(path.dirname(absPath), { recursive: true });
-          fs.writeFileSync(absPath, remoteText, "utf-8");
-          updatedCount++;
-        }
-      } catch {
-        // continue
-      }
-    }
+    const fullFileList = await fetchFullRepoFileList();
+    const updatedCount = await syncFilesFromGitHub(fullFileList);
 
     fs.writeFileSync(
       VERSION_FILE,
@@ -175,17 +229,16 @@ async function autoUpdateFromGitHubOnBoot() {
       )
     );
     console.log(
-      `      Auto-updated ${updatedCount} file(s) from GitHub (${remoteShortSha}).`
+      `      Auto-updated ${updatedCount + missingLocalFiles.length} file(s) from GitHub (${remoteShortSha}).`
     );
-    return updatedCount > 0;
+    return updatedCount + missingLocalFiles.length > 0;
   } catch {
     console.log(`      Offline or GitHub unreachable - booting local files (${localCommit}).`);
-    return false;
+    return missingLocalFiles.length > 0;
   }
 }
 
 function ensureEnvironmentAndDependencies(filesWereUpdated) {
-  // Ensure .env exists
   const envPath = path.join(rootDir, ".env");
   const envExamplePath = path.join(rootDir, ".env.example");
   if (!fs.existsSync(envPath) && fs.existsSync(envExamplePath)) {
@@ -195,13 +248,11 @@ function ensureEnvironmentAndDependencies(filesWereUpdated) {
     console.log("[2/4] Environment configuration verified");
   }
 
-  // Ensure ./data directory exists
   const dataDir = path.join(rootDir, "data");
   if (!fs.existsSync(dataDir)) {
     fs.mkdirSync(dataDir, { recursive: true });
   }
 
-  // Ensure .npmrc has legacy-peer-deps=true
   const npmrcPath = path.join(rootDir, ".npmrc");
   if (!fs.existsSync(npmrcPath)) {
     fs.writeFileSync(
@@ -211,7 +262,6 @@ function ensureEnvironmentAndDependencies(filesWereUpdated) {
     );
   }
 
-  // Check if package.json still has the old conflicting esbuild@^0.25.0 entry
   const pkgJsonPath = path.join(rootDir, "package.json");
   if (fs.existsSync(pkgJsonPath)) {
     try {
@@ -225,8 +275,15 @@ function ensureEnvironmentAndDependencies(filesWereUpdated) {
     }
   }
 
-  // Verify core packages + check for esbuild 0.25.x mismatch with Vite 8
-  const requiredPackages = ["vite", "tsx", "express", "react", "gsap", "motion"];
+  const requiredPackages = [
+    "vite",
+    "tsx",
+    "express",
+    "react",
+    "gsap",
+    "motion",
+    "msedge-tts",
+  ];
   const missingAny = requiredPackages.some(
     (name) => !fs.existsSync(path.join(rootDir, "node_modules", name, "package.json"))
   );
@@ -269,7 +326,6 @@ function ensureEnvironmentAndDependencies(filesWereUpdated) {
     console.log("[3/4] Dependencies verified");
   }
 
-  // Clear stale Vite cache if files were auto-updated or esbuild was repaired
   const viteCacheDir = path.join(rootDir, "node_modules", ".vite");
   if ((filesWereUpdated || hasIncompatibleEsbuild) && fs.existsSync(viteCacheDir)) {
     try {
@@ -285,7 +341,6 @@ async function waitForServerAndWarmup() {
     try {
       const healthRes = await fetch(`http://127.0.0.1:${port}/api/health`);
       if (healthRes.ok) {
-        // Pre-warm Vite index.html and entry modules so browser never sees a white screen
         await fetch(`http://127.0.0.1:${port}/`).catch(() => {});
         await fetch(`http://127.0.0.1:${port}/src/main.tsx`).catch(() => {});
         await fetch(`http://127.0.0.1:${port}/src/App.tsx`).catch(() => {});
@@ -313,7 +368,7 @@ function openBrowser(targetUrl) {
       spawn("xdg-open", [targetUrl], { detached: true, stdio: "ignore" }).unref();
     }
   } catch {
-    // Ignore browser launch error on headless machines
+    // Ignore browser launch error
   }
 }
 

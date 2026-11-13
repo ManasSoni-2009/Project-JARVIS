@@ -185,7 +185,11 @@ export async function checkAndAutoUpdate(options?: {
     const isSameCommit =
       localCommit === remoteShortSha && !options?.forceSyncZipFiles;
 
-    if (isSameCommit) {
+    const missingLocalCoreFiles = CORE_SYNC_FILES.filter(
+      (f) => !fs.existsSync(path.resolve(process.cwd(), f))
+    );
+
+    if (isSameCommit && missingLocalCoreFiles.length === 0) {
       saveLocalVersionFile(remoteShortSha, latestCommitMessage);
       cachedUpdateStatus = {
         repo,
@@ -255,24 +259,38 @@ export async function checkAndAutoUpdate(options?: {
       }
     }
 
-    // Raw HTTP file sync for ZIP installations without .git
-    const candidateFiles = Array.isArray(commitData.files)
-      ? commitData.files
-          .map((f) => f.filename || "")
+    // Raw HTTP file sync for ZIP installations without .git using full GitHub Tree discovery
+    let discoveredTreeFiles: string[] = [];
+    try {
+      const treeRes = await fetch(
+        `https://api.github.com/repos/${repo}/git/trees/${branch}?recursive=1`,
+        { headers }
+      );
+      if (treeRes.ok) {
+        const treeData = (await treeRes.json()) as {
+          tree?: Array<{ path?: string; type?: string }>;
+        };
+        discoveredTreeFiles = (treeData.tree || [])
           .filter(
-            (f) =>
-              f &&
-              !f.startsWith(".env") &&
-              !f.startsWith("data/") &&
-              (CORE_SYNC_FILES.includes(f) ||
-                f.startsWith("src/") ||
-                f.startsWith("server/") ||
-                f.startsWith("scripts/"))
+            (t) =>
+              t.type === "blob" &&
+              typeof t.path === "string" &&
+              !t.path.startsWith("data/") &&
+              !t.path.startsWith(".env") &&
+              (CORE_SYNC_FILES.includes(t.path) ||
+                t.path.startsWith("src/") ||
+                t.path.startsWith("server/") ||
+                t.path.startsWith("scripts/"))
           )
-      : CORE_SYNC_FILES;
+          .map((t) => t.path!);
+      }
+    } catch {
+      // fallback to CORE_SYNC_FILES
+    }
 
-    const filesToSync =
-      candidateFiles.length > 0 ? candidateFiles : CORE_SYNC_FILES;
+    const filesToSync = Array.from(
+      new Set([...CORE_SYNC_FILES, ...discoveredTreeFiles])
+    );
 
     for (const relPath of filesToSync) {
       try {

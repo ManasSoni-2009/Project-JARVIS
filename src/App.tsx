@@ -212,88 +212,88 @@ const PROVIDER_DROPDOWN_OPTIONS: StudioDropdownOption[] = [
 const VOICE_DROPDOWN_OPTIONS: StudioDropdownOption[] = [
   {
     value: "bm_george",
-    label: "J.A.R.V.I.S Movie Edition (bm_george · British RP)",
-    sublabel: "Kokoro-82M Neural · Matches Paul Bettany movie J.A.R.V.I.S cadence",
+    label: "J.A.R.V.I.S Movie Edition (British RP Neural)",
+    sublabel: "RyanNeural British RP + Kokoro bm_george · Paul Bettany cadence",
     badge: "Movie Match",
     badgeColor: "emerald",
     dotColor: "#10B981",
   },
   {
     value: "bm_lewis",
-    label: "Lewis (bm_lewis · Warm British Gentleman)",
-    sublabel: "Kokoro-82M Neural · Articulate Oxford British male",
-    badge: "Kokoro UK",
+    label: "Oxford Gentleman (British Baritone Neural)",
+    sublabel: "ThomasNeural British RP + Kokoro bm_lewis · Warm composed",
+    badge: "British UK",
     badgeColor: "sky",
     dotColor: "#0EA5E9",
   },
   {
     value: "bm_fable",
-    label: "Fable (bm_fable · Crisp British Tactician)",
-    sublabel: "Kokoro-82M Neural · Fast responsive British RP",
-    badge: "Kokoro UK",
+    label: "Fable Tactician (Crisp British RP)",
+    sublabel: "RyanNeural Crisp + Kokoro bm_fable · Fast responsive diction",
+    badge: "British UK",
     badgeColor: "sky",
     dotColor: "#38BDF8",
   },
   {
     value: "bf_emma",
-    label: "F.R.I.D.A.Y. Edition (bf_emma · British/Celtic)",
-    sublabel: "Kokoro-82M Neural · Crisp female tactical AI assistant",
+    label: "F.R.I.D.A.Y. Edition (British Tactical Female)",
+    sublabel: "SoniaNeural British + Kokoro bf_emma · Crisp tactical AI",
     badge: "F.R.I.D.A.Y.",
     badgeColor: "violet",
     dotColor: "#A855F7",
   },
   {
     value: "bf_isabella",
-    label: "Isabella (bf_isabella · Studio British Female)",
-    sublabel: "Kokoro-82M Neural · Refined warm British female",
-    badge: "Kokoro UK",
+    label: "Isabella (Warm British Studio)",
+    sublabel: "LibbyNeural British + Kokoro bf_isabella · Smooth natural",
+    badge: "British UK",
     badgeColor: "violet",
     dotColor: "#C084FC",
   },
   {
     value: "am_adam",
-    label: "Adam (am_adam · Deep American Studio)",
-    sublabel: "Kokoro-82M Neural · Resonant American baritone",
-    badge: "Kokoro US",
+    label: "Brian Multilingual (Deep Studio Male)",
+    sublabel: "BrianMultilingualNeural + Kokoro am_adam · Rich baritone",
+    badge: "Studio US",
     badgeColor: "amber",
     dotColor: "#F59E0B",
   },
   {
     value: "am_michael",
-    label: "Michael (am_michael · Clear American Technical)",
-    sublabel: "Kokoro-82M Neural · Crisp engineering narration",
-    badge: "Kokoro US",
+    label: "Andrew Multilingual (Lifelike Natural Male)",
+    sublabel: "AndrewMultilingualNeural + Kokoro am_michael · Expressive human",
+    badge: "Natural",
     badgeColor: "amber",
     dotColor: "#FBBF24",
   },
   {
     value: "af_heart",
-    label: "Heart (af_heart · Expressive Flagship)",
-    sublabel: "Kokoro-82M #1 Flagship natural conversational voice",
+    label: "Ava Multilingual (Expressive Flagship)",
+    sublabel: "AvaMultilingualNeural + Kokoro af_heart · Warm human prosody",
     badge: "Natural #1",
     badgeColor: "emerald",
     dotColor: "#34D399",
   },
   {
     value: "af_bella",
-    label: "Bella (af_bella · Warm Natural Companion)",
-    sublabel: "Kokoro-82M Neural · Smooth lifelike American female",
-    badge: "Kokoro US",
+    label: "Emma Multilingual (Clear Natural Female)",
+    sublabel: "EmmaMultilingualNeural + Kokoro af_bella · Polished companion",
+    badge: "Studio US",
     badgeColor: "emerald",
     dotColor: "#10B981",
   },
   {
     value: "Fenrir",
-    label: "Fenrir (Cloud Neural Baritone)",
-    sublabel: "Gemini 2.5 TTS · Deep resonant cloud voice",
+    label: "Fenrir (Neural Baritone)",
+    sublabel: "Gemini 2.5 TTS + RyanNeural · Deep resonant studio voice",
     badge: "24kHz",
     badgeColor: "sky",
     dotColor: "#0EA5E9",
   },
   {
     value: "Kore",
-    label: "Kore (Cloud Studio Crisp)",
-    sublabel: "Gemini 2.5 TTS · Balanced studio clarity",
+    label: "Kore (Neural Studio Crisp)",
+    sublabel: "Gemini 2.5 TTS + AndrewNeural · Balanced studio clarity",
     badge: "24kHz",
     badgeColor: "emerald",
     dotColor: "#10B981",
@@ -303,9 +303,9 @@ const VOICE_DROPDOWN_OPTIONS: StudioDropdownOption[] = [
 const TTS_ENGINE_DROPDOWN_OPTIONS: StudioDropdownOption[] = [
   {
     value: "kokoro",
-    label: "Kokoro-82M Neural TTS + Auto-Fallback",
-    sublabel: "Local ONNX bridge (:8880) → Cloud Neural → British RP",
-    badge: "Legacy + Pro",
+    label: "Neural British RP + Kokoro-82M Hybrid",
+    sublabel: "Kokoro ONNX (:8880) → Built-In Studio Neural MP3 → Gemini TTS",
+    badge: "Best Voice",
     badgeColor: "emerald",
     dotColor: "#10B981",
   },
@@ -818,6 +818,8 @@ export default function App() {
       codeDiff?: CodexDiffPatch | null;
       desktopEnvelope?: AgentDesktopEnvelope | null;
       data?: string;
+      text?: string;
+      tts_pending?: boolean;
       message?: string;
     }) => {
       switch (msg.type) {
@@ -938,7 +940,7 @@ export default function App() {
             return next;
           });
 
-          if (msg.response && settings.tts_enabled) {
+          if (msg.response && settings.tts_enabled && !msg.tts_pending) {
             speakBrowserFallback(msg.response);
           }
 
@@ -948,6 +950,12 @@ export default function App() {
         case "tts_audio": {
           if (msg.data) {
             playAudioBase64(msg.data);
+          }
+          break;
+        }
+        case "tts_fallback": {
+          if (msg.text && settings.tts_enabled) {
+            speakBrowserFallback(msg.text);
           }
           break;
         }

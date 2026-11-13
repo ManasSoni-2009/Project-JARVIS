@@ -163,6 +163,9 @@ async function startServer() {
                 codeDiff: partial.codeDiff,
                 desktopEnvelope: partial.desktopEnvelope,
                 tts_enabled: getSettings().ttsEnabled,
+                tts_pending:
+                  getSettings().ttsEnabled &&
+                  getSettings().ttsEngine !== "browser_british",
               });
             }
           );
@@ -172,6 +175,12 @@ async function startServer() {
             broadcast({
               type: "tts_audio",
               data: result.audioBase64,
+              provider: ttsService.lastProvider,
+            });
+          } else if (getSettings().ttsEnabled && result.response) {
+            broadcast({
+              type: "tts_fallback",
+              text: result.response,
             });
           }
           return;
@@ -210,6 +219,9 @@ async function startServer() {
                 codeDiff: partial.codeDiff,
                 desktopEnvelope: partial.desktopEnvelope,
                 tts_enabled: getSettings().ttsEnabled,
+                tts_pending:
+                  getSettings().ttsEnabled &&
+                  getSettings().ttsEngine !== "browser_british",
               });
             },
             { sessionId: targetSessionId }
@@ -219,6 +231,12 @@ async function startServer() {
             broadcast({
               type: "tts_audio",
               data: result.audioBase64,
+              provider: ttsService.lastProvider,
+            });
+          } else if (getSettings().ttsEnabled && result.response) {
+            broadcast({
+              type: "tts_fallback",
+              text: result.response,
             });
           }
         }
@@ -469,9 +487,9 @@ async function startServer() {
 
   // ── Voice Synthesis (TTS) & Transcription (STT) Endpoints ───────────────
   app.post("/api/voice/tts", async (req, res) => {
-    const { text, fallbackCue = true } = req.body as {
+    const { text, voice } = req.body as {
       text?: string;
-      fallbackCue?: boolean;
+      voice?: string;
     };
     if (!text?.trim()) {
       res.status(400).json({ error: "Text required for TTS" });
@@ -479,12 +497,15 @@ async function startServer() {
     }
     const t0 = performance.now();
     const audioBase64 = await ttsService.synthesize(text.trim(), {
-      fallbackCueOnQuota: fallbackCue,
+      voiceOverride: voice,
     });
     res.json({
       ok: Boolean(audioBase64),
       provider: ttsService.lastProvider,
-      mimeType: "audio/wav",
+      mimeType:
+        ttsService.lastProvider === "edge-neural-ryan-rp"
+          ? "audio/mpeg"
+          : "audio/wav",
       audioBase64,
       latencyMs: Math.max(1, Math.round(performance.now() - t0)),
     });
@@ -510,13 +531,18 @@ async function startServer() {
   });
 
   app.post("/api/voice/test", async (req, res) => {
-    const { voice, text } = req.body as { voice?: string; text?: string };
+    const { voice, voiceId, text } = req.body as {
+      voice?: string;
+      voiceId?: string;
+      text?: string;
+    };
     const sampleText =
       text?.trim() ||
-      "Good day, sir. J.A.R.V.I.S online. All five OpenJarvis primitives, Kokoro neural voice, and Faster-Whisper recognition are standing by.";
-    const profile = resolveVoiceProfile(voice || getSettings().ttsVoice);
+      "Good day, sir. J.A.R.V.I.S is online. All subsystems, Obsidian memory graphs, and neural voice synthesis are standing by.";
+    const profile = resolveVoiceProfile(
+      voiceId || voice || getSettings().ttsVoice
+    );
     const audioBase64 = await ttsService.synthesize(sampleText, {
-      fallbackCueOnQuota: true,
       voiceOverride: profile.id,
     });
     res.json({

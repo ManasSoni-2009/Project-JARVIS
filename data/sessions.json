@@ -117,25 +117,6 @@
     ]
   },
   {
-    "id": "sess-agent-desktop-ci",
-    "title": "Automate @e4 CI Runner via Agent-Desktop",
-    "createdAt": "2026-11-12T22:50:11.424Z",
-    "updatedAt": "2026-11-13T00:50:11.424Z",
-    "lastIntent": "agent_desktop",
-    "turns": [
-      {
-        "id": 10,
-        "session_id": "sess-agent-desktop-ci",
-        "timestamp": "2026-11-12T22:50:11.424Z",
-        "user_text": "Click @e4 to execute the CI verification suite in the Codex Build & Test Runner window",
-        "intent": "agent_desktop",
-        "agent_output": "Executed click on @e4 (Run Command button)",
-        "final_response": "Targeted semantic node `@e4` (`button: Run Command`) inside `win-codex-runner` via the `vercel-labs/agent-desktop` accessibility tree. All 42 harness checks passed in 14ms.",
-        "round_trip_ms": 11
-      }
-    ]
-  },
-  {
     "id": "sess-nus-architecture",
     "title": "OpenJarvis 5-Primitive Sprint & Vault Sync",
     "createdAt": "2026-11-12T04:50:11.424Z",
@@ -143,7 +124,7 @@
     "lastIntent": "nus_organizer",
     "turns": [
       {
-        "id": 11,
+        "id": 10,
         "session_id": "sess-nus-architecture",
         "timestamp": "2026-11-12T04:50:11.424Z",
         "user_text": "Summarize our OpenJarvis 5-primitive architecture notes and schedule the benchmark milestone",
