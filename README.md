@@ -96,36 +96,35 @@ User Input (Text / WebSocket Binary Audio / @ref Action)
 
 ---
 
-## Installation & Quick Start Guide
+## Installation & Quick Start Guide (1-Click / 1-Command Launch)
 
-### 1. Prerequisites
-- **Node.js 22+** and **npm 10+** (or **Bun**)
-- **Git 2.34+**
-- A **Google Gemini API Key** (`GEMINI_API_KEY`) — or an API key from OpenAI, Anthropic, or OpenRouter
+Running J.A.R.V.I.S v3.0 from source takes **one click** or **one command** — the launcher automatically creates `.env`, installs dependencies if missing, boots the full-stack server on port `3000`, and opens the Studio GUI in your browser.
 
-### 2. Clone & Install Dependencies
+### Option A — 1-Click / 1-Command Launch (Recommended)
 
 ```bash
 # Clone the repository (Release V3)
 git clone https://github.com/ManasSoni-2009/Project-JARVIS.git
 cd Project-JARVIS
-
-# Install all full-stack dependencies
-npm install
 ```
 
-### 3. Configure Environment Variables
+- **Windows**: Double-click **`jarvis.bat`** (or run `.\jarvis.bat` in PowerShell / Command Prompt)
+- **macOS / Linux**: Run **`./jarvis.sh`**
+- **Any OS (Node.js 22+)**: Run **`npm run jarvis`**
 
-Copy `.env.example` to `.env` and add your API key(s):
+Once **[http://localhost:3000](http://localhost:3000)** opens:
+1. Click the **`Engine`** button in the bottom-left of the Hedwig sidebar to open the **Studio Engine & Workspace Setup** modal.
+2. Select your **Intelligence Provider**, **Primary Model Preset** (`gemini-4-hydrogen` / `gemini-3.1-flash-lite`), **Reasoning Depth**, **Neural Voice Persona** (`Kore`, `Fenrir`, `Puck`, `Charon`, `Zephyr`), **Desktop Automation Backend**, and **Obsidian Vault Directory** — all saved automatically to `./data/settings.json`.
+3. Click **"Run Readiness Check"** inside the modal to run a live 5-subsystem diagnostic self-test directly in the GUI.
 
-```bash
-cp .env.example .env
-```
+---
 
-Edit `.env`:
+### Option B — Manual Developer Setup & Environment Variables
+
+If you prefer manual control over environment variables, edit `.env` (automatically generated from `.env.example` on first launch):
 
 ```env
-# Primary Intelligence & Voice Key (Required for Gemini LLM, STT, and Neural TTS)
+# Primary Intelligence & Voice Key (Server-side environment variable)
 GEMINI_API_KEY="your_gemini_api_key_here"
 
 # Default Provider: google | openai | anthropic | openrouter
@@ -147,31 +146,16 @@ GITHUB_TOKEN=""
 OBSIDIAN_VAULT_PATH="./data/vault"
 ```
 
-### 4. Start the Development Studio Server
-
 ```bash
+# Start development server
 npm run dev
-```
 
-Open **[http://localhost:3000](http://localhost:3000)** in your browser.
+# Run the 14-point automated verification & latency benchmark suite
+npm run verify
 
-### 5. Production Build & Start
-
-```bash
-# Type-check and compile the production frontend bundle into ./dist
-npm run lint
-npm run build
-
-# Start the production server on port 3000
+# Build & start production server
+npm run lint && npm run build
 NODE_ENV=production npm start
-```
-
-### 6. Run the 14-Point Production Verification & Latency Benchmark Suite
-
-With the server running on port `3000`, execute the automated verification loop:
-
-```bash
-npx tsx scripts/verify-prod-v3.ts
 ```
 
 ---

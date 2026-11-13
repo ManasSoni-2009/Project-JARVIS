@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "tsx server.ts",
     "start": "node server.ts",
+    "jarvis": "node scripts/start-jarvis.mjs --open",
+    "verify": "tsx scripts/verify-prod-v3.ts",
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",

@@ -19,6 +19,7 @@ export interface JarvisSettings {
 }
 
 const DEFAULT_VAULT_PATH = path.resolve(process.cwd(), "data", "vault");
+const SETTINGS_FILE_PATH = path.resolve(process.cwd(), "data", "settings.json");
 
 function resolveInitialVaultPath(): string {
   const envVault = process.env.OBSIDIAN_VAULT_PATH?.trim();
@@ -41,6 +42,30 @@ let currentSettings: JarvisSettings = {
     process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1",
 };
 
+try {
+  if (fs.existsSync(SETTINGS_FILE_PATH)) {
+    const saved = JSON.parse(
+      fs.readFileSync(SETTINGS_FILE_PATH, "utf-8")
+    ) as Partial<JarvisSettings>;
+    currentSettings = { ...currentSettings, ...saved };
+  }
+} catch {
+  // Use defaults if settings.json is not yet created
+}
+
+function persistSettingsToDisk(): void {
+  try {
+    fs.mkdirSync(path.dirname(SETTINGS_FILE_PATH), { recursive: true });
+    fs.writeFileSync(
+      SETTINGS_FILE_PATH,
+      JSON.stringify(currentSettings, null, 2),
+      "utf-8"
+    );
+  } catch {
+    // Ignore write error in read-only environments
+  }
+}
+
 export function getSettings(): JarvisSettings {
   return { ...currentSettings };
 }
@@ -51,6 +76,12 @@ export function updateSettings(partial: Partial<JarvisSettings>): JarvisSettings
     ["google", "openai", "anthropic", "openrouter"].includes(partial.llmProvider)
   ) {
     currentSettings.llmProvider = partial.llmProvider;
+  }
+  if (
+    partial.geminiModel &&
+    ["gemini-4-hydrogen", "gemini-3.1-flash-lite"].includes(partial.geminiModel)
+  ) {
+    currentSettings.geminiModel = partial.geminiModel;
   }
   if (
     partial.thinkingMode &&
@@ -73,6 +104,13 @@ export function updateSettings(partial: Partial<JarvisSettings>): JarvisSettings
   ) {
     currentSettings.osBackend = partial.osBackend;
   }
+  if (partial.obsidianVaultPath?.trim()) {
+    const resolved = path.resolve(process.cwd(), partial.obsidianVaultPath.trim());
+    if (resolved.startsWith(process.cwd())) {
+      currentSettings.obsidianVaultPath = resolved;
+    }
+  }
+  persistSettingsToDisk();
   return getSettings();
 }
 
