@@ -1,0 +1,12 @@
+{
+  "engine": "openjarvis-v3",
+  "primitives": ["intelligence", "engine", "agentic_logic", "tools_memory", "learning"],
+  "system1": {
+    "driver": "jev-reflex",
+    "targetLatencyMs": 150
+  },
+  "system2": {
+    "driver": "gemini-4-hydrogen",
+    "thinkingLevel": "HIGH"
+  }
+}

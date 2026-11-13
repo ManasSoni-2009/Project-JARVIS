@@ -1,0 +1,132 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 600" width="100%" height="100%">
+  <defs>
+    <style>
+      .node-rect { fill: #0b1114; stroke: #00d2ff; stroke-width: 2; rx: 8; }
+      .node-text { font-family: sans-serif; font-size: 14px; fill: #ffffff; font-weight: bold; }
+      .node-subtext { font-family: monospace; font-size: 10px; fill: #00aaff; }
+      .group-rect { fill: rgba(0, 40, 60, 0.2); stroke: #005577; stroke-width: 1; stroke-dasharray: 5 5; rx: 10; }
+      .group-title { font-family: monospace; font-size: 12px; fill: #0088aa; letter-spacing: 2px; }
+      .path-line { fill: none; stroke: #005577; stroke-width: 2; }
+      .data-packet { fill: #00ffcc; filter: url(#glow); }
+      .data-packet-fast { fill: #ff00cc; filter: url(#glow); }
+    </style>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+    <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#00d2ff" />
+    </marker>
+  </defs>
+  <rect width="100%" height="100%" fill="#040608" />
+  <pattern id="dotGrid" width="20" height="20" patternUnits="userSpaceOnUse">
+    <circle cx="2" cy="2" r="1" fill="#003344" />
+  </pattern>
+  <rect width="100%" height="100%" fill="url(#dotGrid)" />
+  <rect x="50" y="50" width="200" height="200" class="group-rect" />
+  <text x="60" y="70" class="group-title">CLIENT (BROWSER)</text>
+  <rect x="300" y="50" width="300" height="500" class="group-rect" />
+  <text x="310" y="70" class="group-title">CORE SYSTEM</text>
+  <rect x="320" y="210" width="260" height="260" class="group-rect" style="fill: rgba(0, 210, 255, 0.05); stroke: #0088cc;" />
+  <text x="330" y="230" class="group-title" style="fill: #00d2ff;">LANGGRAPH SUPERVISOR</text>
+  <rect x="650" y="50" width="200" height="500" class="group-rect" />
+  <text x="660" y="70" class="group-title">EXTERNAL SERVICES</text>
+  <g id="paths">
+    <path id="path-ui-ws" d="M 230 100 L 450 100" class="path-line" marker-end="url(#arrow)" />
+    <path id="path-ws-stt" d="M 450 120 L 450 150" class="path-line" marker-end="url(#arrow)" />
+    <path id="path-stt-class" d="M 450 190 L 450 250" class="path-line" marker-end="url(#arrow)" />
+    <path id="path-class-chat" d="M 450 290 L 380 340" class="path-line" marker-end="url(#arrow)" />
+    <path id="path-class-browser" d="M 450 290 L 450 340" class="path-line" marker-end="url(#arrow)" />
+    <path id="path-class-os" d="M 450 290 L 520 340" class="path-line" marker-end="url(#arrow)" />
+    <path id="path-chat-llm" d="M 380 380 L 380 400 L 750 400 L 750 120" class="path-line" marker-end="url(#arrow)" />
+    <path id="path-browser-chrome" d="M 450 380 L 450 410 L 750 410 L 750 220" class="path-line" marker-end="url(#arrow)" />
+    <path id="path-os-desktop" d="M 520 380 L 520 420 L 750 420 L 750 320" class="path-line" marker-end="url(#arrow)" />
+    <path id="path-agents-polish" d="M 450 380 L 450 440" class="path-line" marker-end="url(#arrow)" />
+    <path id="path-chat-polish" d="M 380 380 L 450 440" class="path-line" marker-end="url(#arrow)" />
+    <path id="path-os-polish" d="M 520 380 L 450 440" class="path-line" marker-end="url(#arrow)" />
+    <path id="path-polish-tts" d="M 450 480 L 450 510 L 380 510" class="path-line" marker-end="url(#arrow)" />
+    <path id="path-tts-ws" d="M 380 490 L 380 100 L 450 100" class="path-line" marker-end="url(#arrow)" />
+  </g>
+  <circle r="4" class="data-packet">
+    <animateMotion dur="2s" repeatCount="indefinite" path="M 230 100 L 450 100" />
+  </circle>
+  <circle r="4" class="data-packet">
+    <animateMotion dur="1s" repeatCount="indefinite" begin="0.5s" path="M 450 120 L 450 150" />
+  </circle>
+  <circle r="4" class="data-packet-fast">
+    <animateMotion dur="1s" repeatCount="indefinite" path="M 450 290 L 450 340" />
+  </circle>
+  <circle r="4" class="data-packet-fast">
+    <animateMotion dur="2s" repeatCount="indefinite" begin="1s" path="M 450 380 L 450 410 L 750 410 L 750 220" />
+  </circle>
+  <g transform="translate(70, 80)">
+    <rect width="160" height="40" class="node-rect" />
+    <text x="80" y="20" class="node-text" text-anchor="middle">UI &amp; Mic</text>
+    <text x="80" y="34" class="node-subtext" text-anchor="middle">Voice / Text Input</text>
+  </g>
+  <g transform="translate(70, 130)">
+    <rect width="160" height="40" class="node-rect" />
+    <text x="80" y="20" class="node-text" text-anchor="middle">Audio Playback</text>
+    <text x="80" y="34" class="node-subtext" text-anchor="middle">Speaker</text>
+  </g>
+  <g transform="translate(370, 80)">
+    <rect width="160" height="40" class="node-rect" />
+    <text x="80" y="20" class="node-text" text-anchor="middle">WebSocket Server</text>
+    <text x="80" y="34" class="node-subtext" text-anchor="middle">Real-time Comms</text>
+  </g>
+  <g transform="translate(370, 150)">
+    <rect width="160" height="40" class="node-rect" />
+    <text x="80" y="20" class="node-text" text-anchor="middle">Faster-Whisper</text>
+    <text x="80" y="34" class="node-subtext" text-anchor="middle">STT</text>
+  </g>
+  <g transform="translate(370, 250)">
+    <rect width="160" height="40" class="node-rect" fill="#002233" />
+    <text x="80" y="20" class="node-text" text-anchor="middle">Intent Classifier</text>
+    <text x="80" y="34" class="node-subtext" text-anchor="middle">Routing logic</text>
+  </g>
+  <g transform="translate(330, 340)">
+    <rect width="60" height="40" class="node-rect" />
+    <text x="30" y="25" class="node-text" text-anchor="middle">Chat</text>
+  </g>
+  <g transform="translate(420, 340)">
+    <rect width="60" height="40" class="node-rect" />
+    <text x="30" y="25" class="node-text" text-anchor="middle">Browser</text>
+  </g>
+  <g transform="translate(510, 340)">
+    <rect width="60" height="40" class="node-rect" />
+    <text x="30" y="25" class="node-text" text-anchor="middle">OS/MCP</text>
+  </g>
+  <g transform="translate(370, 440)">
+    <rect width="160" height="40" class="node-rect" />
+    <text x="80" y="20" class="node-text" text-anchor="middle">Response Polisher</text>
+    <text x="80" y="34" class="node-subtext" text-anchor="middle">Formats for TTS</text>
+  </g>
+  <g transform="translate(310, 490)">
+    <rect width="140" height="40" class="node-rect" />
+    <text x="70" y="20" class="node-text" text-anchor="middle">Kokoro TTS</text>
+    <text x="70" y="34" class="node-subtext" text-anchor="middle">82M Params (Local)</text>
+  </g>
+  <g transform="translate(670, 80)">
+    <rect width="160" height="40" class="node-rect" />
+    <text x="80" y="20" class="node-text" text-anchor="middle">LLM Providers</text>
+    <text x="80" y="34" class="node-subtext" text-anchor="middle">Gemini/GPT/Claude</text>
+  </g>
+  <g transform="translate(670, 180)">
+    <rect width="160" height="40" class="node-rect" />
+    <text x="80" y="20" class="node-text" text-anchor="middle">Chrome Browser</text>
+    <text x="80" y="34" class="node-subtext" text-anchor="middle">Playwright Automations</text>
+  </g>
+  <g transform="translate(670, 280)">
+    <rect width="160" height="40" class="node-rect" />
+    <text x="80" y="20" class="node-text" text-anchor="middle">Windows Desktop</text>
+    <text x="80" y="34" class="node-subtext" text-anchor="middle">OpenClaw / PyAutoGUI</text>
+  </g>
+  <g transform="translate(670, 380)">
+    <rect width="160" height="40" class="node-rect" />
+    <text x="80" y="20" class="node-text" text-anchor="middle">External APIs</text>
+    <text x="80" y="34" class="node-subtext" text-anchor="middle">Obsidian / GitHub (MCP)</text>
+  </g>
+</svg>

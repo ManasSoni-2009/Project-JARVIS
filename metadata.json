@@ -1,0 +1,6 @@
+{
+  "name": "J.A.R.V.I.S v2.0",
+  "description": "Just A Rather Very Intelligent System — Voice-controlled multi-agent AI dashboard with supervisor routing, web research, MCP tools, Obsidian second brain, and voice pipeline.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
