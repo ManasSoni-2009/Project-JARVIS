@@ -5,25 +5,41 @@ import path from "node:path";
 export type LLMProvider = "google" | "openai" | "anthropic" | "openrouter";
 export type OSBackend = "gemini_vision" | "openclaw";
 export type ThinkingMode = "auto" | "high" | "medium" | "low";
+export type TTSEngine = "kokoro" | "gemini" | "browser_british";
+export type STTEngine = "faster_whisper" | "gemini" | "web_speech";
 
 export interface JarvisSettings {
   llmProvider: LLMProvider;
   geminiModel: string;
   thinkingMode: ThinkingMode;
   ttsEnabled: boolean;
+  ttsEngine: TTSEngine;
+  sttEngine: STTEngine;
   ttsVoice: string;
   ttsLang: string;
+  kokoroUrl: string;
+  whisperUrl: string;
   osBackend: OSBackend;
   obsidianVaultPath: string;
   openrouterBaseUrl: string;
+  onboardingCompleted: boolean;
+}
+
+export interface CredentialUpdatePayload {
+  gemini_api_key?: string;
+  openai_api_key?: string;
+  anthropic_api_key?: string;
+  openrouter_api_key?: string;
+  github_token?: string;
 }
 
 const DEFAULT_VAULT_PATH = path.resolve(process.cwd(), "data", "vault");
 const SETTINGS_FILE_PATH = path.resolve(process.cwd(), "data", "settings.json");
+const ENV_FILE_PATH = path.resolve(process.cwd(), ".env");
 
 function resolveInitialVaultPath(): string {
   const envVault = process.env.OBSIDIAN_VAULT_PATH?.trim();
-  if (envVault && !/^[A-Za-z]:\\/.test(envVault) && fs.existsSync(envVault)) {
+  if (envVault && fs.existsSync(envVault)) {
     return path.resolve(envVault);
   }
   return DEFAULT_VAULT_PATH;
@@ -34,12 +50,17 @@ let currentSettings: JarvisSettings = {
   geminiModel: "gemini-4-hydrogen",
   thinkingMode: "auto",
   ttsEnabled: true,
-  ttsVoice: process.env.TTS_VOICE || "Kore",
+  ttsEngine: (process.env.TTS_ENGINE as TTSEngine) || "kokoro",
+  sttEngine: (process.env.STT_ENGINE as STTEngine) || "faster_whisper",
+  ttsVoice: process.env.TTS_VOICE || "bm_george",
   ttsLang: process.env.TTS_LANG || "en-gb",
+  kokoroUrl: process.env.KOKORO_TTS_URL || "http://127.0.0.1:8880",
+  whisperUrl: process.env.FASTER_WHISPER_URL || "http://127.0.0.1:8880",
   osBackend: (process.env.OS_BACKEND as OSBackend) || "gemini_vision",
   obsidianVaultPath: resolveInitialVaultPath(),
   openrouterBaseUrl:
     process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1",
+  onboardingCompleted: false,
 };
 
 try {
@@ -66,6 +87,59 @@ function persistSettingsToDisk(): void {
   }
 }
 
+function upsertEnvVarOnDisk(key: string, value: string): void {
+  try {
+    let content = fs.existsSync(ENV_FILE_PATH)
+      ? fs.readFileSync(ENV_FILE_PATH, "utf-8")
+      : "";
+    const escapedVal = value.replace(/"/g, '\\"');
+    const regex = new RegExp(`^${key}=.*$`, "m");
+    if (regex.test(content)) {
+      content = content.replace(regex, `${key}="${escapedVal}"`);
+    } else {
+      content = `${content.trimEnd()}\n${key}="${escapedVal}"\n`;
+    }
+    fs.writeFileSync(ENV_FILE_PATH, content, "utf-8");
+  } catch {
+    // Ignore write error on read-only mounts
+  }
+}
+
+export function updateCredentials(creds: CredentialUpdatePayload): void {
+  if (typeof creds.gemini_api_key === "string" && creds.gemini_api_key.trim()) {
+    const v = creds.gemini_api_key.trim();
+    process.env.GEMINI_API_KEY = v;
+    cachedAiClient = null;
+    upsertEnvVarOnDisk("GEMINI_API_KEY", v);
+  }
+  if (typeof creds.openai_api_key === "string" && creds.openai_api_key.trim()) {
+    const v = creds.openai_api_key.trim();
+    process.env.OPENAI_API_KEY = v;
+    upsertEnvVarOnDisk("OPENAI_API_KEY", v);
+  }
+  if (
+    typeof creds.anthropic_api_key === "string" &&
+    creds.anthropic_api_key.trim()
+  ) {
+    const v = creds.anthropic_api_key.trim();
+    process.env.ANTHROPIC_API_KEY = v;
+    upsertEnvVarOnDisk("ANTHROPIC_API_KEY", v);
+  }
+  if (
+    typeof creds.openrouter_api_key === "string" &&
+    creds.openrouter_api_key.trim()
+  ) {
+    const v = creds.openrouter_api_key.trim();
+    process.env.OPENROUTER_API_KEY = v;
+    upsertEnvVarOnDisk("OPENROUTER_API_KEY", v);
+  }
+  if (typeof creds.github_token === "string" && creds.github_token.trim()) {
+    const v = creds.github_token.trim();
+    process.env.GITHUB_TOKEN = v;
+    upsertEnvVarOnDisk("GITHUB_TOKEN", v);
+  }
+}
+
 export function getSettings(): JarvisSettings {
   return { ...currentSettings };
 }
@@ -76,6 +150,7 @@ export function updateSettings(partial: Partial<JarvisSettings>): JarvisSettings
     ["google", "openai", "anthropic", "openrouter"].includes(partial.llmProvider)
   ) {
     currentSettings.llmProvider = partial.llmProvider;
+    upsertEnvVarOnDisk("LLM_PROVIDER", partial.llmProvider);
   }
   if (
     partial.geminiModel &&
@@ -92,43 +167,90 @@ export function updateSettings(partial: Partial<JarvisSettings>): JarvisSettings
   if (typeof partial.ttsEnabled === "boolean") {
     currentSettings.ttsEnabled = partial.ttsEnabled;
   }
+  if (
+    partial.ttsEngine &&
+    ["kokoro", "gemini", "browser_british"].includes(partial.ttsEngine)
+  ) {
+    currentSettings.ttsEngine = partial.ttsEngine;
+    upsertEnvVarOnDisk("TTS_ENGINE", partial.ttsEngine);
+  }
+  if (
+    partial.sttEngine &&
+    ["faster_whisper", "gemini", "web_speech"].includes(partial.sttEngine)
+  ) {
+    currentSettings.sttEngine = partial.sttEngine;
+    upsertEnvVarOnDisk("STT_ENGINE", partial.sttEngine);
+  }
   if (partial.ttsVoice) {
     currentSettings.ttsVoice = partial.ttsVoice;
+    upsertEnvVarOnDisk("TTS_VOICE", partial.ttsVoice);
   }
   if (partial.ttsLang) {
     currentSettings.ttsLang = partial.ttsLang;
+    upsertEnvVarOnDisk("TTS_LANG", partial.ttsLang);
+  }
+  if (partial.kokoroUrl?.trim()) {
+    currentSettings.kokoroUrl = partial.kokoroUrl.trim();
+    upsertEnvVarOnDisk("KOKORO_TTS_URL", currentSettings.kokoroUrl);
+  }
+  if (partial.whisperUrl?.trim()) {
+    currentSettings.whisperUrl = partial.whisperUrl.trim();
+    upsertEnvVarOnDisk("FASTER_WHISPER_URL", currentSettings.whisperUrl);
   }
   if (
     partial.osBackend &&
     ["gemini_vision", "openclaw"].includes(partial.osBackend)
   ) {
     currentSettings.osBackend = partial.osBackend;
+    upsertEnvVarOnDisk("OS_BACKEND", partial.osBackend);
   }
   if (partial.obsidianVaultPath?.trim()) {
     const resolved = path.resolve(process.cwd(), partial.obsidianVaultPath.trim());
-    if (resolved.startsWith(process.cwd())) {
-      currentSettings.obsidianVaultPath = resolved;
-    }
+    currentSettings.obsidianVaultPath = resolved;
+    upsertEnvVarOnDisk("OBSIDIAN_VAULT_PATH", partial.obsidianVaultPath.trim());
+  }
+  if (typeof partial.onboardingCompleted === "boolean") {
+    currentSettings.onboardingCompleted = partial.onboardingCompleted;
   }
   persistSettingsToDisk();
   return getSettings();
 }
 
+function maskKey(val?: string): string {
+  if (!val || val === "MY_GEMINI_API_KEY" || val.trim().length < 6) return "";
+  const trimmed = val.trim();
+  return `${trimmed.slice(0, 4)}••••••••${trimmed.slice(-4)}`;
+}
+
 export function getProviderKeyStatus() {
+  const geminiKey =
+    process.env.GEMINI_API_KEY &&
+    process.env.GEMINI_API_KEY !== "MY_GEMINI_API_KEY"
+      ? process.env.GEMINI_API_KEY
+      : "";
+  const openaiKey = process.env.OPENAI_API_KEY || "";
+  const anthropicKey = process.env.ANTHROPIC_API_KEY || "";
+  const openrouterKey = process.env.OPENROUTER_API_KEY || "";
+  const githubToken =
+    process.env.GITHUB_TOKEN ||
+    process.env.GH_TOKEN ||
+    process.env.GITHUB_SECRET ||
+    process.env.GITHUB_PAT ||
+    "";
+
   return {
-    has_gemini_key: Boolean(
-      process.env.GEMINI_API_KEY &&
-        process.env.GEMINI_API_KEY !== "MY_GEMINI_API_KEY"
-    ),
-    has_openai_key: Boolean(process.env.OPENAI_API_KEY),
-    has_anthropic_key: Boolean(process.env.ANTHROPIC_API_KEY),
-    has_openrouter_key: Boolean(process.env.OPENROUTER_API_KEY),
-    has_github_token: Boolean(
-      process.env.GITHUB_TOKEN ||
-        process.env.GH_TOKEN ||
-        process.env.GITHUB_SECRET ||
-        process.env.GITHUB_PAT
-    ),
+    has_gemini_key: Boolean(geminiKey),
+    has_openai_key: Boolean(openaiKey),
+    has_anthropic_key: Boolean(anthropicKey),
+    has_openrouter_key: Boolean(openrouterKey),
+    has_github_token: Boolean(githubToken),
+    masked_keys: {
+      gemini: maskKey(geminiKey),
+      openai: maskKey(openaiKey),
+      anthropic: maskKey(anthropicKey),
+      openrouter: maskKey(openrouterKey),
+      github: maskKey(githubToken),
+    },
   };
 }
 

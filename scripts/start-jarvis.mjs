@@ -29,8 +29,10 @@ const CORE_SYNC_FILES = [
   "jarvis.bat",
   "jarvis.sh",
   "scripts/start-jarvis.mjs",
+  "scripts/voice_bridge.py",
   "server/config.ts",
   "server/updater.ts",
+  "server/memory/obsidian.ts",
   "server/brain/jevReflex.ts",
   "server/brain/supervisor.ts",
   "server/brain/state.ts",
@@ -44,6 +46,7 @@ const CORE_SYNC_FILES = [
   "src/components/JevPetPill.tsx",
   "src/components/CodexWorkbench.tsx",
   "src/components/StudioDropdown.tsx",
+  "src/components/OnboardingWizard.tsx",
 ];
 
 function getLocalCommit() {

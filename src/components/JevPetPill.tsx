@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import gsap from "gsap";
 import { AnimatePresence, motion } from "motion/react";
-import { Maximize2, Mic, Sparkles, Terminal } from "lucide-react";
+import { Maximize2, Mic, PictureInPicture2, Sparkles, Terminal } from "lucide-react";
 import {
   JevReflexDecision,
   PillMood,
@@ -16,10 +16,12 @@ interface JevPetPillProps {
   lastJevDecision: JevReflexDecision | null;
   statusSubtitle: string;
   activeRef?: string;
+  isAlwaysOnTopActive?: boolean;
   onToggleRecording: () => void;
   onRestoreMainView: () => void;
   onSelectMood?: (mood: PillMood) => void;
   onQuickCommand?: (cmd: string) => void;
+  onLaunchAlwaysOnTopPip?: () => void;
 }
 
 interface ExpressionProfile {
@@ -142,10 +144,12 @@ export const JevPetPill: React.FC<JevPetPillProps> = ({
   lastJevDecision,
   statusSubtitle,
   activeRef,
+  isAlwaysOnTopActive,
   onToggleRecording,
   onRestoreMainView,
   onSelectMood,
   onQuickCommand,
+  onLaunchAlwaysOnTopPip,
 }) => {
   const [isPopped, setIsPopped] = useState(false);
   const [isWinking, setIsWinking] = useState(false);
@@ -535,6 +539,21 @@ export const JevPetPill: React.FC<JevPetPillProps> = ({
               >
                 <Sparkles className="w-3.5 h-3.5" />
               </button>
+
+              {onLaunchAlwaysOnTopPip && (
+                <button
+                  type="button"
+                  onClick={onLaunchAlwaysOnTopPip}
+                  title="Pin Always-On-Top OS Floating Pill (Stays on screen across apps)"
+                  className={`studio-btn w-7 h-7 rounded-full flex items-center justify-center cursor-pointer ${
+                    isAlwaysOnTopActive
+                      ? "bg-sky-500 text-white"
+                      : "text-[#1D1D1F] dark:text-[#F5F5F7] hover:bg-black/[0.06] dark:hover:bg-white/[0.09]"
+                  }`}
+                >
+                  <PictureInPicture2 className="w-3.5 h-3.5" />
+                </button>
+              )}
 
               {isFocusAwayMode && (
                 <button

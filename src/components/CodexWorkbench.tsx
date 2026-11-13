@@ -64,6 +64,8 @@ interface CodexWorkbenchProps {
   onDeleteMilestone: (id: string) => void;
   vaultNotes: VaultNoteItem[];
   onCreateVaultNote: (title: string, content: string) => void;
+  onDeleteVaultNote?: (stem: string) => void;
+  onAppendDailyNote?: (entry: string) => void;
 }
 
 const INSPECTOR_HEADER_META: Record<
@@ -146,6 +148,8 @@ export const CodexWorkbench: React.FC<CodexWorkbenchProps> = ({
   onDeleteMilestone,
   vaultNotes,
   onCreateVaultNote,
+  onDeleteVaultNote,
+  onAppendDailyNote,
 }) => {
   const [selectedFilePath, setSelectedFilePath] = useState<string>(
     files[0]?.path || "src/harness/jevReflexRouter.ts"
@@ -162,8 +166,84 @@ export const CodexWorkbench: React.FC<CodexWorkbenchProps> = ({
     "high" | "medium" | "low"
   >("high");
 
-  const [newNoteTitle, setNewNoteTitle] = useState("");
-  const [newNoteBody, setNewNoteBody] = useState("");
+  // Full Obsidian Second Brain Workspace State
+  const [vaultSubTab, setVaultSubTab] = useState<
+    "editor" | "graph" | "milestones"
+  >("editor");
+  const [selectedTag, setSelectedTag] = useState<string>("all");
+  const [selectedNoteStem, setSelectedNoteStem] = useState<string>(
+    "Welcome to JARVIS"
+  );
+  const [editorTitle, setEditorTitle] = useState<string>("Welcome to JARVIS");
+  const [editorContent, setEditorContent] = useState<string>("");
+  const [isCreatingNewNote, setIsCreatingNewNote] = useState<boolean>(false);
+  const [dailyEntryInput, setDailyEntryInput] = useState<string>("");
+  const [ragQueryInput, setRagQueryInput] = useState<string>("");
+  const [ragAnswer, setRagAnswer] = useState<string | null>(null);
+  const [ragLoading, setRagLoading] = useState<boolean>(false);
+
+  const allVaultTags = useMemo(() => {
+    const s = new Set<string>();
+    for (const n of vaultNotes) {
+      for (const t of n.tags || []) s.add(t);
+    }
+    return ["all", ...Array.from(s)];
+  }, [vaultNotes]);
+
+  const filteredVaultNotes = useMemo(() => {
+    if (selectedTag === "all") return vaultNotes;
+    return vaultNotes.filter((n) => (n.tags || []).includes(selectedTag));
+  }, [selectedTag, vaultNotes]);
+
+  const activeVaultNote = useMemo(() => {
+    return (
+      vaultNotes.find(
+        (n) => n.stem.toLowerCase() === selectedNoteStem.toLowerCase()
+      ) ||
+      vaultNotes[0] ||
+      null
+    );
+  }, [selectedNoteStem, vaultNotes]);
+
+  const handleSelectVaultNote = (note: VaultNoteItem) => {
+    setIsCreatingNewNote(false);
+    setSelectedNoteStem(note.stem);
+    setEditorTitle(note.stem);
+    setEditorContent(note.content || note.preview || "");
+  };
+
+  const handleJumpToWikilink = (targetStem: string) => {
+    const found = vaultNotes.find(
+      (n) => n.stem.toLowerCase() === targetStem.toLowerCase()
+    );
+    if (found) {
+      handleSelectVaultNote(found);
+      setVaultSubTab("editor");
+    } else {
+      setIsCreatingNewNote(true);
+      setEditorTitle(targetStem);
+      setEditorContent(`# ${targetStem}\n\nLinked from [[${selectedNoteStem}]].\n`);
+      setVaultSubTab("editor");
+    }
+  };
+
+  const handleRunVaultRag = async () => {
+    if (!ragQueryInput.trim()) return;
+    setRagLoading(true);
+    try {
+      const res = await fetch("/api/vault/query", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: ragQueryInput.trim() }),
+      });
+      const data = await res.json();
+      if (data.answer) setRagAnswer(data.answer);
+    } catch {
+      setRagAnswer("Failed to query Obsidian Second Brain.");
+    } finally {
+      setRagLoading(false);
+    }
+  };
 
   const activePatch =
     patches.find((p) => p.id === selectedPatchId) || patches[0] || null;
@@ -881,7 +961,7 @@ export const CodexWorkbench: React.FC<CodexWorkbenchProps> = ({
           </motion.div>
         )}
 
-        {/* VIEW 4: NŪS COMPANION MILESTONES & OBSIDIAN SECOND BRAIN */}
+        {/* VIEW 4: FULL OBSIDIAN SECOND BRAIN SPACE & NŪS COMPANION */}
         {activeTab === "nus_vault" && (
           <motion.div
             key="tab-nus-vault"
@@ -889,182 +969,509 @@ export const CodexWorkbench: React.FC<CodexWorkbenchProps> = ({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6 }}
             transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-            className="flex-1 flex flex-col min-h-0 overflow-y-auto studio-scroll p-4 gap-4"
+            className="flex-1 flex flex-col min-h-0 overflow-y-auto studio-scroll p-4 gap-3.5"
           >
-            <div className="rounded-[14px] border border-black/[0.07] dark:border-white/[0.08] bg-[#F8F8FA] dark:bg-[#0E0E12] p-3.5 flex flex-col gap-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Cpu className="w-3.5 h-3.5 text-amber-500" />
-                  <span className="text-xs font-semibold text-[#1D1D1F] dark:text-zinc-100">
-                    NŪS Companion · Milestones
-                  </span>
-                </div>
-                <span className="font-mono text-[10.5px] text-[#6E6E73] dark:text-zinc-400 tabular-nums">
-                  {milestones.filter((m) => m.status !== "done").length} active
-                </span>
-              </div>
-
-              <div className="flex items-center gap-1.5 z-20">
-                <input
-                  type="text"
-                  value={newMilestoneTitle}
-                  onChange={(e) => setNewMilestoneTitle(e.target.value)}
-                  placeholder="Add milestone or deadline..."
-                  className="flex-1 min-w-0 h-8 bg-white dark:bg-[#09090C] border border-black/[0.08] dark:border-white/[0.09] focus:border-amber-500/60 rounded-[10px] px-2.5 text-xs text-[#1D1D1F] dark:text-zinc-200 outline-none transition-colors"
-                />
-                <StudioDropdown
-                  value={newMilestonePriority}
-                  options={PRIORITY_OPTIONS}
-                  onChange={(val) =>
-                    setNewMilestonePriority(val as "high" | "medium" | "low")
-                  }
-                  align="right"
-                  className="w-[122px] shrink-0"
-                  menuWidthClass="w-[175px]"
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!newMilestoneTitle.trim()) return;
-                    onAddMilestone({
-                      title: newMilestoneTitle.trim(),
-                      courseOrProject: newMilestoneCourse,
-                      dueDate: new Date(Date.now() + 4 * 86400000)
-                        .toISOString()
-                        .slice(0, 10),
-                      priority: newMilestonePriority,
-                    });
-                    setNewMilestoneTitle("");
-                  }}
-                  className="studio-btn h-8 px-2.5 rounded-[10px] bg-[#1D1D1F] dark:bg-white text-white dark:text-[#1D1D1F] text-xs font-semibold inline-flex items-center gap-1 cursor-pointer shrink-0"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Add</span>
-                </button>
-              </div>
-
-              <div className="divide-y divide-black/[0.05] dark:divide-white/[0.06] rounded-[10px] border border-black/[0.06] dark:border-white/[0.06] bg-white dark:bg-[#09090C]">
-                <AnimatePresence initial={false}>
-                  {milestones.map((m) => {
-                    const nextStatus =
-                      m.status === "todo"
-                        ? "in_progress"
-                        : m.status === "in_progress"
-                        ? "done"
-                        : "todo";
-                    return (
-                      <motion.div
-                        key={m.id}
-                        layout
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-                        className="p-2.5 flex items-center justify-between gap-2 text-xs"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <div
-                            className={`font-medium truncate transition-colors ${
-                              m.status === "done"
-                                ? "line-through text-[#8E8E93] dark:text-zinc-500"
-                                : "text-[#1D1D1F] dark:text-zinc-100"
-                            }`}
-                          >
-                            {m.title}
-                          </div>
-                          <div className="text-[10.5px] text-[#6E6E73] dark:text-zinc-500 font-mono mt-0.5">
-                            {m.courseOrProject} · {m.dueDate} · {m.priority}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              onUpdateMilestoneStatus(m.id, nextStatus)
-                            }
-                            className={`studio-btn px-2 py-0.5 rounded-[7px] font-mono text-[10.5px] cursor-pointer ${
-                              m.status === "done"
-                                ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
-                                : m.status === "in_progress"
-                                ? "bg-sky-500/15 text-sky-700 dark:text-sky-300"
-                                : "bg-black/[0.06] dark:bg-white/[0.08] text-[#1D1D1F] dark:text-zinc-300"
-                            }`}
-                          >
-                            {m.status}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => onDeleteMilestone(m.id)}
-                            aria-label="Delete milestone"
-                            className="studio-btn p-1 text-[#8E8E93] hover:text-rose-500 cursor-pointer"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </motion.div>
-                    );
-                  })}
-                </AnimatePresence>
-              </div>
+            {/* Sub-View Switcher: Obsidian Editor | Knowledge Graph & RAG | NŪS Milestones */}
+            <div className="flex items-center justify-between gap-2 p-1 rounded-[12px] bg-[#F2F2F7] dark:bg-[#0B0B0E] border border-black/[0.05] dark:border-white/[0.06] shrink-0">
+              {[
+                { id: "editor" as const, label: `Obsidian Notes (${vaultNotes.length})` },
+                { id: "graph" as const, label: "Graph & Deep RAG" },
+                {
+                  id: "milestones" as const,
+                  label: `NŪS Tasks (${milestones.filter((m) => m.status !== "done").length})`,
+                },
+              ].map((tab) => {
+                const active = vaultSubTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setVaultSubTab(tab.id)}
+                    className={`flex-1 h-7 rounded-[9px] text-[11px] font-semibold transition-all cursor-pointer ${
+                      active
+                        ? "bg-white dark:bg-[#222228] text-[#1D1D1F] dark:text-white shadow-xs"
+                        : "text-[#6E6E73] dark:text-[#8E8E93] hover:text-[#1D1D1F] dark:hover:text-zinc-200"
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                );
+              })}
             </div>
 
-            <div className="rounded-[14px] border border-black/[0.07] dark:border-white/[0.08] bg-[#F8F8FA] dark:bg-[#0E0E12] p-3.5 flex flex-col gap-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-[#1D1D1F] dark:text-zinc-100">
-                  Obsidian Second Brain (`./data/vault`)
-                </span>
-                <span className="font-mono text-[10.5px] text-[#6E6E73] dark:text-zinc-400 tabular-nums">
-                  {vaultNotes.length} notes
-                </span>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <input
-                  type="text"
-                  value={newNoteTitle}
-                  onChange={(e) => setNewNoteTitle(e.target.value)}
-                  placeholder="Note title..."
-                  className="h-8 bg-white dark:bg-[#09090C] border border-black/[0.08] dark:border-white/[0.09] focus:border-sky-500/60 rounded-[10px] px-2.5 text-xs text-[#1D1D1F] dark:text-zinc-200 outline-none transition-colors"
-                />
-                <div className="flex items-center gap-1.5">
+            {/* SUB-TAB 1: OBSIDIAN MARKDOWN SPACE (Notes List + Tag Filter + Full Markdown Editor + Wikilinks) */}
+            {vaultSubTab === "editor" && (
+              <div className="flex flex-col gap-3">
+                {/* Daily Quick-Log Bar */}
+                <div className="p-2.5 rounded-[12px] bg-[#F8F8FA] dark:bg-[#0E0E12] border border-black/[0.06] dark:border-white/[0.07] flex items-center gap-1.5">
                   <input
                     type="text"
-                    value={newNoteBody}
-                    onChange={(e) => setNewNoteBody(e.target.value)}
-                    placeholder="Markdown content ([[WikiLinks]], #tags)..."
-                    className="flex-1 min-w-0 h-8 bg-white dark:bg-[#09090C] border border-black/[0.08] dark:border-white/[0.09] focus:border-sky-500/60 rounded-[10px] px-2.5 text-xs text-[#1D1D1F] dark:text-zinc-200 outline-none transition-colors"
+                    value={dailyEntryInput}
+                    onChange={(e) => setDailyEntryInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && dailyEntryInput.trim()) {
+                        onAppendDailyNote?.(dailyEntryInput.trim());
+                        setDailyEntryInput("");
+                      }
+                    }}
+                    placeholder="Quick log to today's Daily Note (Daily/YYYY-MM-DD.md)..."
+                    className="flex-1 min-w-0 h-7 bg-white dark:bg-[#09090C] border border-black/[0.08] dark:border-white/[0.09] rounded-[8px] px-2.5 text-xs text-[#1D1D1F] dark:text-zinc-200 outline-none"
                   />
                   <button
                     type="button"
                     onClick={() => {
-                      if (!newNoteTitle.trim()) return;
-                      onCreateVaultNote(newNoteTitle.trim(), newNoteBody);
-                      setNewNoteTitle("");
-                      setNewNoteBody("");
+                      if (!dailyEntryInput.trim()) return;
+                      onAppendDailyNote?.(dailyEntryInput.trim());
+                      setDailyEntryInput("");
                     }}
-                    className="studio-btn h-8 px-3 rounded-[10px] bg-[#1D1D1F] dark:bg-white text-white dark:text-[#1D1D1F] text-xs font-semibold cursor-pointer shrink-0"
+                    className="studio-btn h-7 px-2.5 rounded-[8px] bg-amber-500/15 text-amber-700 dark:text-amber-300 text-[11px] font-semibold cursor-pointer shrink-0"
                   >
-                    Save
+                    + Daily Log
                   </button>
                 </div>
-              </div>
 
-              <div className="divide-y divide-black/[0.05] dark:divide-white/[0.06] rounded-[10px] border border-black/[0.06] dark:border-white/[0.06] bg-white dark:bg-[#09090C]">
-                {vaultNotes.map((note) => (
-                  <div
-                    key={note.name}
-                    className="p-2.5 text-xs hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors"
+                {/* Tag Filter Pills + New Note Button */}
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-1 flex-wrap">
+                    {allVaultTags.slice(0, 7).map((tag) => (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => setSelectedTag(tag)}
+                        className={`px-2 py-0.5 rounded-full font-mono text-[10px] cursor-pointer transition-colors ${
+                          selectedTag === tag
+                            ? "bg-[#1D1D1F] dark:bg-white text-white dark:text-[#1D1D1F] font-semibold"
+                            : "bg-black/[0.05] dark:bg-white/[0.07] text-[#6E6E73] dark:text-zinc-400 hover:text-[#1D1D1F] dark:hover:text-white"
+                        }`}
+                      >
+                        #{tag}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCreatingNewNote(true);
+                      setEditorTitle("");
+                      setEditorContent(
+                        "---\ntags: [jarvis, note]\n---\n\n# New Note\n\nLinked to [[Welcome to JARVIS]].\n"
+                      );
+                    }}
+                    className="studio-btn px-2.5 py-1 rounded-[8px] bg-[#1D1D1F] dark:bg-white text-white dark:text-[#1D1D1F] text-[11px] font-semibold inline-flex items-center gap-1 cursor-pointer"
                   >
-                    <div className="font-semibold text-[#1D1D1F] dark:text-zinc-100">
-                      {note.stem}
-                    </div>
-                    <div className="text-[11px] text-[#6E6E73] dark:text-zinc-400 mt-0.5 line-clamp-2">
-                      {note.preview}
+                    <Plus className="w-3 h-3" />
+                    <span>New Note</span>
+                  </button>
+                </div>
+
+                {/* Horizontal Note Switcher Pills */}
+                <div className="flex items-center gap-1.5 overflow-x-auto studio-scroll pb-1">
+                  {filteredVaultNotes.map((note) => {
+                    const isSelected =
+                      !isCreatingNewNote &&
+                      activeVaultNote?.stem === note.stem;
+                    return (
+                      <button
+                        key={note.stem}
+                        type="button"
+                        onClick={() => handleSelectVaultNote(note)}
+                        className={`px-2.5 py-1.5 rounded-[10px] text-xs font-medium whitespace-nowrap border transition-all cursor-pointer flex items-center gap-1.5 ${
+                          isSelected
+                            ? "bg-white dark:bg-[#1C1C24] border-amber-500/50 text-[#1D1D1F] dark:text-white shadow-xs"
+                            : "bg-[#F8F8FA] dark:bg-[#0E0E12] border-black/[0.06] dark:border-white/[0.07] text-[#6E6E73] dark:text-zinc-400 hover:text-[#1D1D1F] dark:hover:text-zinc-200"
+                        }`}
+                      >
+                        <FileCode className="w-3 h-3 text-amber-500 shrink-0" />
+                        <span>{note.stem}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Active Markdown Note Editor & Wikilink Navigator */}
+                <div className="rounded-[14px] border border-black/[0.08] dark:border-white/[0.09] bg-white dark:bg-[#09090C] p-3.5 flex flex-col gap-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <input
+                      type="text"
+                      value={
+                        isCreatingNewNote
+                          ? editorTitle
+                          : editorTitle || activeVaultNote?.stem || ""
+                      }
+                      onChange={(e) => setEditorTitle(e.target.value)}
+                      placeholder="Note title..."
+                      className="flex-1 min-w-0 font-bold text-xs text-[#1D1D1F] dark:text-white bg-transparent border-b border-transparent focus:border-amber-500/50 pb-0.5 outline-none"
+                    />
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {!isCreatingNewNote &&
+                        activeVaultNote &&
+                        vaultNotes.length > 1 &&
+                        onDeleteVaultNote && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              onDeleteVaultNote(activeVaultNote.stem)
+                            }
+                            title="Delete note"
+                            className="studio-btn p-1.5 rounded-[8px] text-[#8E8E93] hover:text-rose-500 hover:bg-rose-500/10 cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const targetTitle = (
+                            isCreatingNewNote
+                              ? editorTitle
+                              : editorTitle || activeVaultNote?.stem || ""
+                          ).trim();
+                          const targetBody =
+                            editorContent ||
+                            activeVaultNote?.content ||
+                            activeVaultNote?.preview ||
+                            "";
+                          if (!targetTitle) return;
+                          onCreateVaultNote(targetTitle, targetBody);
+                          setIsCreatingNewNote(false);
+                          setSelectedNoteStem(targetTitle);
+                        }}
+                        className="studio-btn px-3 py-1 rounded-[8px] bg-[#1D1D1F] dark:bg-white text-white dark:text-[#1D1D1F] text-[11px] font-semibold cursor-pointer"
+                      >
+                        Save Note
+                      </button>
                     </div>
                   </div>
-                ))}
+
+                  <textarea
+                    rows={10}
+                    value={
+                      isCreatingNewNote
+                        ? editorContent
+                        : editorContent ||
+                          activeVaultNote?.content ||
+                          activeVaultNote?.preview ||
+                          ""
+                    }
+                    onFocus={() => {
+                      if (!isCreatingNewNote && !editorContent && activeVaultNote) {
+                        setEditorTitle(activeVaultNote.stem);
+                        setEditorContent(
+                          activeVaultNote.content || activeVaultNote.preview || ""
+                        );
+                      }
+                    }}
+                    onChange={(e) => setEditorContent(e.target.value)}
+                    placeholder="Write Markdown with [[WikiLinks]] and #tags..."
+                    className="w-full rounded-[10px] bg-[#F8F8FA] dark:bg-[#0E0E12] border border-black/[0.06] dark:border-white/[0.07] p-2.5 font-mono text-[11.5px] leading-relaxed text-[#1D1D1F] dark:text-zinc-200 outline-none focus:border-amber-500/50 resize-y"
+                  />
+
+                  {/* Outgoing [[Wikilinks]] & Incoming Backlinks */}
+                  {activeVaultNote && !isCreatingNewNote && (
+                    <div className="pt-1 flex flex-col gap-1.5 text-[11px]">
+                      {(activeVaultNote.links || []).length > 0 && (
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-mono text-[10px] text-[#8E8E93]">
+                            WikiLinks:
+                          </span>
+                          {(activeVaultNote.links || []).map((lnk) => (
+                            <button
+                              key={lnk}
+                              type="button"
+                              onClick={() => handleJumpToWikilink(lnk)}
+                              className="px-2 py-0.5 rounded-[6px] bg-amber-500/12 text-amber-700 dark:text-amber-300 font-mono text-[10.5px] hover:bg-amber-500/25 cursor-pointer"
+                            >
+                              [[{lnk}]]
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {(activeVaultNote.backlinks || []).length > 0 && (
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-mono text-[10px] text-[#8E8E93]">
+                            Referenced by:
+                          </span>
+                          {(activeVaultNote.backlinks || []).map((bl) => (
+                            <button
+                              key={bl}
+                              type="button"
+                              onClick={() => handleJumpToWikilink(bl)}
+                              className="px-2 py-0.5 rounded-[6px] bg-sky-500/12 text-sky-700 dark:text-sky-300 font-mono text-[10.5px] hover:bg-sky-500/25 cursor-pointer"
+                            >
+                              ← {bl}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* SUB-TAB 2: INTERACTIVE KNOWLEDGE GRAPH & DEEP RAG QUERY */}
+            {vaultSubTab === "graph" && (
+              <div className="flex flex-col gap-3">
+                {/* Interactive SVG Knowledge Graph */}
+                <div className="rounded-[14px] border border-black/[0.07] dark:border-white/[0.08] bg-[#F8F8FA] dark:bg-[#0A0A0E] p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-semibold text-[#1D1D1F] dark:text-zinc-100">
+                      Obsidian Second Brain Graph (`[[WikiLinks]]`)
+                    </span>
+                    <span className="font-mono text-[10px] text-[#8E8E93]">
+                      Click any node to open note
+                    </span>
+                  </div>
+
+                  <svg
+                    viewBox="0 0 380 210"
+                    className="w-full h-48 rounded-[10px] bg-white dark:bg-[#07070A] border border-black/[0.05] dark:border-white/[0.06]"
+                  >
+                    {(() => {
+                      const nodes = vaultNotes.slice(0, 7);
+                      const coords = nodes.map((n, idx) => {
+                        if (idx === 0) return { note: n, x: 190, y: 105 };
+                        const angle =
+                          ((idx - 1) / Math.max(1, nodes.length - 1)) *
+                          Math.PI *
+                          2;
+                        return {
+                          note: n,
+                          x: Math.round(190 + Math.cos(angle) * 125),
+                          y: Math.round(105 + Math.sin(angle) * 68),
+                        };
+                      });
+
+                      const edges: Array<{
+                        x1: number;
+                        y1: number;
+                        x2: number;
+                        y2: number;
+                        key: string;
+                      }> = [];
+                      for (const src of coords) {
+                        for (const targetName of src.note.links || []) {
+                          const dst = coords.find(
+                            (c) =>
+                              c.note.stem.toLowerCase() ===
+                              targetName.toLowerCase()
+                          );
+                          if (dst) {
+                            edges.push({
+                              x1: src.x,
+                              y1: src.y,
+                              x2: dst.x,
+                              y2: dst.y,
+                              key: `${src.note.stem}->${dst.note.stem}`,
+                            });
+                          }
+                        }
+                      }
+
+                      return (
+                        <>
+                          {edges.map((e) => (
+                            <line
+                              key={e.key}
+                              x1={e.x1}
+                              y1={e.y1}
+                              x2={e.x2}
+                              y2={e.y2}
+                              stroke="#F59E0B"
+                              strokeOpacity={0.45}
+                              strokeWidth={1.5}
+                            />
+                          ))}
+                          {coords.map((c) => {
+                            const isSelected =
+                              c.note.stem === activeVaultNote?.stem;
+                            return (
+                              <g
+                                key={c.note.stem}
+                                onClick={() => {
+                                  handleSelectVaultNote(c.note);
+                                  setVaultSubTab("editor");
+                                }}
+                                className="cursor-pointer"
+                              >
+                                <circle
+                                  cx={c.x}
+                                  cy={c.y}
+                                  r={isSelected ? 11 : 8}
+                                  fill={isSelected ? "#F59E0B" : "#0EA5E9"}
+                                  fillOpacity={0.9}
+                                />
+                                <text
+                                  x={c.x}
+                                  y={c.y + 20}
+                                  textAnchor="middle"
+                                  fill="currentColor"
+                                  className="text-[9px] font-mono fill-[#1D1D1F] dark:fill-zinc-300"
+                                >
+                                  {c.note.stem.slice(0, 20)}
+                                </text>
+                              </g>
+                            );
+                          })}
+                        </>
+                      );
+                    })()}
+                  </svg>
+                </div>
+
+                {/* Deep RAG Vault Query */}
+                <div className="rounded-[14px] border border-black/[0.07] dark:border-white/[0.08] bg-[#F8F8FA] dark:bg-[#0E0E12] p-3.5 flex flex-col gap-2.5">
+                  <div className="text-xs font-semibold text-[#1D1D1F] dark:text-zinc-100">
+                    Obsidian Deep RAG Synthesis
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="text"
+                      value={ragQueryInput}
+                      onChange={(e) => setRagQueryInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") void handleRunVaultRag();
+                      }}
+                      placeholder="Ask across your Second Brain vault..."
+                      className="flex-1 min-w-0 h-8 bg-white dark:bg-[#09090C] border border-black/[0.08] dark:border-white/[0.09] rounded-[10px] px-2.5 text-xs text-[#1D1D1F] dark:text-zinc-200 outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void handleRunVaultRag()}
+                      disabled={ragLoading}
+                      className="studio-btn h-8 px-3 rounded-[10px] bg-[#1D1D1F] dark:bg-white text-white dark:text-[#1D1D1F] text-xs font-semibold cursor-pointer shrink-0"
+                    >
+                      {ragLoading ? "Analyzing..." : "Ask Vault"}
+                    </button>
+                  </div>
+                  {ragAnswer && (
+                    <div className="p-3 rounded-[10px] bg-white dark:bg-[#09090C] border border-black/[0.06] dark:border-white/[0.07] text-xs leading-relaxed text-[#1D1D1F] dark:text-zinc-200 whitespace-pre-wrap">
+                      {ragAnswer}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* SUB-TAB 3: NŪS COMPANION MILESTONES */}
+            {vaultSubTab === "milestones" && (
+              <div className="rounded-[14px] border border-black/[0.07] dark:border-white/[0.08] bg-[#F8F8FA] dark:bg-[#0E0E12] p-3.5 flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Cpu className="w-3.5 h-3.5 text-amber-500" />
+                    <span className="text-xs font-semibold text-[#1D1D1F] dark:text-zinc-100">
+                      NŪS Companion · Milestones & Deadlines
+                    </span>
+                  </div>
+                  <span className="font-mono text-[10.5px] text-[#6E6E73] dark:text-zinc-400 tabular-nums">
+                    {milestones.filter((m) => m.status !== "done").length} active
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-1.5 z-20">
+                  <input
+                    type="text"
+                    value={newMilestoneTitle}
+                    onChange={(e) => setNewMilestoneTitle(e.target.value)}
+                    placeholder="Add milestone or deadline..."
+                    className="flex-1 min-w-0 h-8 bg-white dark:bg-[#09090C] border border-black/[0.08] dark:border-white/[0.09] focus:border-amber-500/60 rounded-[10px] px-2.5 text-xs text-[#1D1D1F] dark:text-zinc-200 outline-none transition-colors"
+                  />
+                  <StudioDropdown
+                    value={newMilestonePriority}
+                    options={PRIORITY_OPTIONS}
+                    onChange={(val) =>
+                      setNewMilestonePriority(val as "high" | "medium" | "low")
+                    }
+                    align="right"
+                    className="w-[122px] shrink-0"
+                    menuWidthClass="w-[175px]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!newMilestoneTitle.trim()) return;
+                      onAddMilestone({
+                        title: newMilestoneTitle.trim(),
+                        courseOrProject: newMilestoneCourse,
+                        dueDate: new Date(Date.now() + 4 * 86400000)
+                          .toISOString()
+                          .slice(0, 10),
+                        priority: newMilestonePriority,
+                      });
+                      setNewMilestoneTitle("");
+                    }}
+                    className="studio-btn h-8 px-2.5 rounded-[10px] bg-[#1D1D1F] dark:bg-white text-white dark:text-[#1D1D1F] text-xs font-semibold inline-flex items-center gap-1 cursor-pointer shrink-0"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add</span>
+                  </button>
+                </div>
+
+                <div className="divide-y divide-black/[0.05] dark:divide-white/[0.06] rounded-[10px] border border-black/[0.06] dark:border-white/[0.06] bg-white dark:bg-[#09090C]">
+                  <AnimatePresence initial={false}>
+                    {milestones.map((m) => {
+                      const nextStatus =
+                        m.status === "todo"
+                          ? "in_progress"
+                          : m.status === "in_progress"
+                          ? "done"
+                          : "todo";
+                      return (
+                        <motion.div
+                          key={m.id}
+                          layout
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                          className="p-2.5 flex items-center justify-between gap-2 text-xs"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div
+                              className={`font-medium truncate transition-colors ${
+                                m.status === "done"
+                                  ? "line-through text-[#8E8E93] dark:text-zinc-500"
+                                  : "text-[#1D1D1F] dark:text-zinc-100"
+                              }`}
+                            >
+                              {m.title}
+                            </div>
+                            <div className="text-[10.5px] text-[#6E6E73] dark:text-zinc-500 font-mono mt-0.5">
+                              {m.courseOrProject} · {m.dueDate} · {m.priority}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                onUpdateMilestoneStatus(m.id, nextStatus)
+                              }
+                              className={`studio-btn px-2 py-0.5 rounded-[7px] font-mono text-[10.5px] cursor-pointer ${
+                                m.status === "done"
+                                  ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                                  : m.status === "in_progress"
+                                  ? "bg-sky-500/15 text-sky-700 dark:text-sky-300"
+                                  : "bg-black/[0.06] dark:bg-white/[0.08] text-[#1D1D1F] dark:text-zinc-300"
+                              }`}
+                            >
+                              {m.status}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => onDeleteMilestone(m.id)}
+                              aria-label="Delete milestone"
+                              className="studio-btn p-1 text-[#8E8E93] hover:text-rose-500 cursor-pointer"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </AnimatePresence>
+                </div>
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

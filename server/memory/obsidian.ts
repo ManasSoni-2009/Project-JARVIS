@@ -17,19 +17,43 @@ export class ObsidianMemory {
 
   async ensureVault(): Promise<void> {
     await fs.mkdir(this.vaultPath, { recursive: true });
+    await fs.mkdir(path.join(this.vaultPath, "Daily"), { recursive: true });
     const existing = await this.allNotes();
-    if (existing.length === 0) {
-      const today = new Date().toISOString().slice(0, 10);
-      await fs.writeFile(
-        path.join(this.vaultPath, "Welcome to JARVIS.md"),
-        `---\ntitle: Welcome to JARVIS\ncreated: ${today}\ntags: [jarvis, architecture, guide]\n---\n\n# J.A.R.V.I.S Second Brain\n\nThis Obsidian-compatible markdown vault stores notes, daily logs, and project knowledge.\n\nTry commands such as:\n- "Find my notes tagged #jarvis"\n- "Add to my daily note that Project JARVIS is online"\n- "Analyze my notes about architecture"\n`,
-        "utf-8"
-      );
-      await fs.writeFile(
-        path.join(this.vaultPath, "Project Architecture.md"),
-        `---\ntitle: Project Architecture\ncreated: ${today}\ntags: [jarvis, multi-agent, gemini]\n---\n\n# Multi-Agent Architecture\n\n[[Welcome to JARVIS]] connects a supervisor router to five specialist agents:\n1. **Chat Agent** — Conversational assistant with deep thinking.\n2. **Browser Agent** — Live web search and URL synthesis.\n3. **OS / OpenClaw** — Desktop automation adapter.\n4. **MCP Client** — Filesystem, GitHub API, and ArXiv research tools.\n5. **Obsidian Memory** — Markdown vault search, daily logs, and RAG synthesis.\n`,
-        "utf-8"
-      );
+    const today = new Date().toISOString().slice(0, 10);
+
+    const starterNotes: Array<{ relPath: string; body: string }> = [
+      {
+        relPath: "Welcome to JARVIS.md",
+        body: `---\ntitle: Welcome to JARVIS\ncreated: ${today}\ntags: [jarvis, architecture, guide, onboarding]\n---\n\n# J.A.R.V.I.S v3.0 Second Brain Space\n\nWelcome to your integrated Obsidian Second Brain vault. Every markdown note here is indexed by the OpenJarvis 5-Primitive Memory Engine with automatic \`[[Wikilinks]]\` and \`#tag\` graph discovery.\n\n## Connected Knowledge Nodes\n- [[Project Architecture]] — 5-Primitive OpenJarvis core & Jev \`<3ms\` System-1 Reflex\n- [[Kokoro & Faster-Whisper Voice Engine]] — \`bm_george\` British RP movie J.A.R.V.I.S voice & Faster-Whisper STT\n- [[Agent-Desktop Semantic Refs]] — Deterministic \`@e1\`–\`@e17\` accessibility automation\n\n## Voice & Chat Commands\n- *"Analyze my Obsidian vault notes about architecture"*\n- *"Add to my daily note that Kokoro TTS and Faster-Whisper are online"*\n- *"Find my notes tagged #voice"*\n`,
+      },
+      {
+        relPath: "Project Architecture.md",
+        body: `---\ntitle: Project Architecture\ncreated: ${today}\ntags: [jarvis, architecture, openjarvis, jev]\n---\n\n# OpenJarvis 5-Primitive & Jev Reflex Architecture\n\n[[Welcome to JARVIS]] connects the **Jev System-1 Fast Reflex Harness** (\`<3ms\` deterministic triage) with five specialist subsystems:\n\n1. **Chat & Reasoning Engine** — Dynamic System-1 / System-2 synthesis with 1ms LRU cache.\n2. **Browser Grounding Agent** — Live Google Search and URL context verification.\n3. **Agent-Desktop Engine** — See [[Agent-Desktop Semantic Refs]] for \`@e1\`..\`@e17\` UI control.\n4. **MCP Tool Client** — Safe workspace filesystem, GitHub REST API, and ArXiv research.\n5. **Voice Pipeline** — Powered by [[Kokoro & Faster-Whisper Voice Engine]].\n`,
+      },
+      {
+        relPath: "Kokoro & Faster-Whisper Voice Engine.md",
+        body: `---\ntitle: Kokoro & Faster-Whisper Voice Engine\ncreated: ${today}\ntags: [jarvis, voice, kokoro, whisper]\n---\n\n# Kokoro-82M Neural TTS & Faster-Whisper STT\n\nLinked from [[Welcome to JARVIS]] and [[Project Architecture]].\n\n## Primary Cinema Voice (\`bm_george\`)\n- **Voice ID**: \`bm_george\` (Kokoro-82M British Male RP)\n- **Cadence**: Articulate, composed Paul Bettany J.A.R.V.I.S delivery (\`en-GB\`, speed \`1.03\`, pitch \`0.94\`)\n- **Additional Natural Personas**: \`bm_lewis\`, \`bm_fable\`, \`bf_emma\` (F.R.I.D.A.Y.), \`bf_isabella\`, \`am_adam\`, \`am_michael\`, \`af_heart\`, \`af_bella\`\n\n## Faster-Whisper Speech-to-Text\n- **Engine**: \`faster-whisper\` (\`base.en\` INT8) via \`scripts/voice_bridge.py\` (\`http://127.0.0.1:8880\`) + live browser speech streaming + multimodal fallback.\n`,
+      },
+      {
+        relPath: "Agent-Desktop Semantic Refs.md",
+        body: `---\ntitle: Agent-Desktop Semantic Refs\ncreated: ${today}\ntags: [jarvis, desktop, refs, automation]\n---\n\n# Semantic Desktop Automation (\`@e1\`–\`@e17\`)\n\nPart of [[Project Architecture]]. Maps active desktop windows into deterministic accessibility handles:\n\n- **Window 1 (Codex Build & Test Runner)**: \`@e1\`..\`@e7\` (\`Click @e4\` runs CI verification)\n- **Window 2 (NŪS Companion Scratchpad)**: \`@e8\`..\`@e13\` (\`Click @e12\` syncs scratchpad to [[Welcome to JARVIS]])\n- **Window 3 (System Daemons)**: \`@e14\`..\`@e17\`\n`,
+      },
+      {
+        relPath: path.join("Daily", `${today}.md`),
+        body: `---\ntitle: Daily Note - ${today}\ncreated: ${today}\ntags: [daily, jarvis, log]\n---\n\n# Daily Engineering Log — ${today}\n\n- **09:00**: Initialized [[Welcome to JARVIS]] and verified [[Kokoro & Faster-Whisper Voice Engine]] with \`bm_george\` British RP voice.\n- **09:15**: Confirmed [[Agent-Desktop Semantic Refs]] (\`@e1\`..\`@e17\`) and [[Project Architecture]] telemetry.\n`,
+      },
+    ];
+
+    if (existing.length <= 2) {
+      for (const item of starterNotes) {
+        const fullPath = path.join(this.vaultPath, item.relPath);
+        try {
+          await fs.access(fullPath);
+        } catch {
+          await fs.mkdir(path.dirname(fullPath), { recursive: true });
+          await fs.writeFile(fullPath, item.body, "utf-8");
+        }
+      }
     }
   }
 
@@ -95,28 +119,105 @@ export class ObsidianMemory {
     return lines.join("\n");
   }
 
-  async listNotes(): Promise<Array<{ name: string; stem: string; preview: string; updatedAt: string }>> {
+  private extractTagsAndLinks(rawContent: string): {
+    tags: string[];
+    links: string[];
+  } {
+    const tagSet = new Set<string>();
+    const fmTagsMatch = rawContent.match(/tags:\s*\[([^\]]+)\]/i);
+    if (fmTagsMatch) {
+      for (const raw of fmTagsMatch[1].split(",")) {
+        const clean = raw.trim().replace(/^['"#]|['"]$/g, "").toLowerCase();
+        if (clean) tagSet.add(clean);
+      }
+    }
+    for (const m of rawContent.matchAll(/(?:^|\s)#([a-zA-Z0-9_-]{2,28})/g)) {
+      tagSet.add(m[1].toLowerCase());
+    }
+
+    const linkSet = new Set<string>();
+    for (const m of rawContent.matchAll(/\[\[([^\]|#]+)(?:[|#][^\]]*)?\]\]/g)) {
+      const target = m[1].trim();
+      if (target) linkSet.add(target);
+    }
+
+    return {
+      tags: Array.from(tagSet),
+      links: Array.from(linkSet),
+    };
+  }
+
+  async listNotes(): Promise<
+    Array<{
+      name: string;
+      stem: string;
+      preview: string;
+      content: string;
+      tags: string[];
+      links: string[];
+      backlinks: string[];
+      folder: string;
+      updatedAt: string;
+    }>
+  > {
     await this.ensureVault();
     const files = await this.allNotes();
-    const items = await Promise.all(
+    const rawItems = await Promise.all(
       files.map(async (filePath) => {
         const stat = await fs.stat(filePath);
-        const preview = await this.excerpt(filePath, 140);
+        const content = await fs.readFile(filePath, "utf-8");
+        const preview = await this.excerpt(filePath, 160);
+        const { tags, links } = this.extractTagsAndLinks(content);
+        const relDir = path.relative(this.vaultPath, path.dirname(filePath));
         return {
           name: path.basename(filePath),
           stem: path.basename(filePath, ".md"),
           preview,
+          content,
+          tags,
+          links,
+          backlinks: [] as string[],
+          folder: relDir === "" || relDir === "." ? "Root" : relDir,
           updatedAt: stat.mtime.toISOString(),
         };
       })
     );
-    return items.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+
+    // Populate backlinks across notes
+    for (const item of rawItems) {
+      item.backlinks = rawItems
+        .filter(
+          (other) =>
+            other.stem !== item.stem &&
+            other.links.some(
+              (l) => l.toLowerCase() === item.stem.toLowerCase()
+            )
+        )
+        .map((other) => other.stem);
+    }
+
+    return rawItems.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  }
+
+  async deleteNote(stem: string): Promise<boolean> {
+    await this.ensureVault();
+    const files = await this.allNotes();
+    const target = files.find(
+      (f) => path.basename(f, ".md").toLowerCase() === stem.trim().toLowerCase()
+    );
+    if (!target) return false;
+    await fs.unlink(target);
+    return true;
   }
 
   async writeNote(title: string, content: string, append = false): Promise<string> {
     await this.ensureVault();
     const safeTitle = title.replace(/[<>:"/\\|?*]/g, "_").trim() || "Untitled";
-    const filePath = path.join(this.vaultPath, `${safeTitle}.md`);
+    const files = await this.allNotes();
+    const existingFile = files.find(
+      (f) => path.basename(f, ".md").toLowerCase() === safeTitle.toLowerCase()
+    );
+    const filePath = existingFile || path.join(this.vaultPath, `${safeTitle}.md`);
     const linked = await this.autoLink(content);
     const now = new Date();
     const dateStr = now.toISOString().slice(0, 10);
@@ -136,9 +237,14 @@ export class ObsidianMemory {
       }
     }
 
+    if (linked.trimStart().startsWith("---")) {
+      await fs.writeFile(filePath, linked, "utf-8");
+      return `Saved note '${safeTitle}.md'.`;
+    }
+
     const frontmatter = `---\ntitle: ${safeTitle}\ncreated: ${dateStr}\ntags: [jarvis]\n---\n\n`;
     await fs.writeFile(filePath, frontmatter + linked, "utf-8");
-    return `Created note '${safeTitle}.md'.`;
+    return `Saved note '${safeTitle}.md'.`;
   }
 
   async getDailyNote(): Promise<string> {

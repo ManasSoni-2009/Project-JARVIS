@@ -183,6 +183,11 @@ export interface VaultNoteItem {
   name: string;
   stem: string;
   preview: string;
+  content?: string;
+  tags?: string[];
+  links?: string[];
+  backlinks?: string[];
+  folder?: string;
   updatedAt: string;
 }
 

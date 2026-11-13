@@ -18,7 +18,10 @@ import {
   getSettings,
   LLMProvider,
   OSBackend,
+  STTEngine,
   ThinkingMode,
+  TTSEngine,
+  updateCredentials,
   updateSettings,
 } from "./server/config.ts";
 import { ObsidianMemory } from "./server/memory/obsidian.ts";
@@ -26,7 +29,10 @@ import { sessionMemory } from "./server/memory/session.ts";
 import { nusOrganizer } from "./server/nus/organizer.ts";
 import { JarvisPipeline } from "./server/transport/pipeline.ts";
 import { STT } from "./server/transport/stt.ts";
-import { JarvisTTS } from "./server/transport/tts.ts";
+import {
+  JarvisTTS,
+  resolveVoiceProfile,
+} from "./server/transport/tts.ts";
 import {
   checkAndAutoUpdate,
   getAutoUpdateStatus,
@@ -503,6 +509,25 @@ async function startServer() {
     });
   });
 
+  app.post("/api/voice/test", async (req, res) => {
+    const { voice, text } = req.body as { voice?: string; text?: string };
+    const sampleText =
+      text?.trim() ||
+      "Good day, sir. J.A.R.V.I.S online. All five OpenJarvis primitives, Kokoro neural voice, and Faster-Whisper recognition are standing by.";
+    const profile = resolveVoiceProfile(voice || getSettings().ttsVoice);
+    const audioBase64 = await ttsService.synthesize(sampleText, {
+      fallbackCueOnQuota: true,
+      voiceOverride: profile.id,
+    });
+    res.json({
+      ok: true,
+      text: sampleText,
+      audioBase64,
+      provider: ttsService.lastProvider,
+      voiceProfile: profile,
+    });
+  });
+
   // ── Settings & Vault Routes ──────────────────────────────────────────────
   app.get("/api/settings", (_req, res) => {
     const s = getSettings();
@@ -512,10 +537,15 @@ async function startServer() {
       flash_model: s.geminiModel,
       thinking_mode: s.thinkingMode,
       tts_enabled: s.ttsEnabled,
+      tts_engine: s.ttsEngine,
+      stt_engine: s.sttEngine,
       tts_voice: s.ttsVoice,
       tts_lang: s.ttsLang,
+      kokoro_url: s.kokoroUrl,
+      whisper_url: s.whisperUrl,
       os_backend: s.osBackend,
       obsidian_vault_path: s.obsidianVaultPath,
+      onboarding_completed: s.onboardingCompleted,
       ...keys,
     });
   });
@@ -526,21 +556,44 @@ async function startServer() {
       flash_model?: string;
       thinking_mode?: ThinkingMode;
       tts_enabled?: boolean;
+      tts_engine?: TTSEngine;
+      stt_engine?: STTEngine;
       tts_voice?: string;
       tts_lang?: string;
+      kokoro_url?: string;
+      whisper_url?: string;
       os_backend?: OSBackend;
       obsidian_vault_path?: string;
+      onboarding_completed?: boolean;
+      gemini_api_key?: string;
+      openai_api_key?: string;
+      anthropic_api_key?: string;
+      openrouter_api_key?: string;
+      github_token?: string;
     };
+
+    updateCredentials({
+      gemini_api_key: body.gemini_api_key,
+      openai_api_key: body.openai_api_key,
+      anthropic_api_key: body.anthropic_api_key,
+      openrouter_api_key: body.openrouter_api_key,
+      github_token: body.github_token,
+    });
 
     const updated = updateSettings({
       llmProvider: body.provider,
       geminiModel: body.flash_model,
       thinkingMode: body.thinking_mode,
       ttsEnabled: body.tts_enabled,
+      ttsEngine: body.tts_engine,
+      sttEngine: body.stt_engine,
       ttsVoice: body.tts_voice,
       ttsLang: body.tts_lang,
+      kokoroUrl: body.kokoro_url,
+      whisperUrl: body.whisper_url,
       osBackend: body.os_backend,
       obsidianVaultPath: body.obsidian_vault_path,
+      onboardingCompleted: body.onboarding_completed,
     });
 
     if (body.obsidian_vault_path) {
@@ -554,9 +607,15 @@ async function startServer() {
       flash_model: updated.geminiModel,
       thinking_mode: updated.thinkingMode,
       tts_enabled: updated.ttsEnabled,
+      tts_engine: updated.ttsEngine,
+      stt_engine: updated.sttEngine,
       tts_voice: updated.ttsVoice,
+      tts_lang: updated.ttsLang,
+      kokoro_url: updated.kokoroUrl,
+      whisper_url: updated.whisperUrl,
       os_backend: updated.osBackend,
       obsidian_vault_path: updated.obsidianVaultPath,
+      onboarding_completed: updated.onboardingCompleted,
       ...getProviderKeyStatus(),
     });
   });
@@ -650,7 +709,7 @@ async function startServer() {
     try {
       const obsidian = new ObsidianMemory();
       const notes = await obsidian.listNotes();
-      res.json({ notes });
+      res.json({ notes, vaultPath: getSettings().obsidianVaultPath });
     } catch (err) {
       res
         .status(500)
@@ -660,18 +719,72 @@ async function startServer() {
 
   app.post("/api/vault", async (req, res) => {
     try {
-      const { title, content } = req.body as {
+      const { title, content, append } = req.body as {
         title?: string;
         content?: string;
+        append?: boolean;
       };
       if (!title?.trim()) {
         res.status(400).json({ error: "Note title required" });
         return;
       }
       const obsidian = new ObsidianMemory();
-      const msg = await obsidian.writeNote(title.trim(), content || "", false);
+      const msg = await obsidian.writeNote(
+        title.trim(),
+        content || "",
+        Boolean(append)
+      );
       const notes = await obsidian.listNotes();
       res.json({ message: msg, notes });
+    } catch (err) {
+      res
+        .status(500)
+        .json({ error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+
+  app.delete("/api/vault/note/:stem", async (req, res) => {
+    try {
+      const obsidian = new ObsidianMemory();
+      await obsidian.deleteNote(req.params.stem);
+      const notes = await obsidian.listNotes();
+      res.json({ ok: true, notes });
+    } catch (err) {
+      res
+        .status(500)
+        .json({ error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+
+  app.post("/api/vault/daily", async (req, res) => {
+    try {
+      const { entry } = req.body as { entry?: string };
+      if (!entry?.trim()) {
+        res.status(400).json({ error: "Daily entry text required" });
+        return;
+      }
+      const obsidian = new ObsidianMemory();
+      const message = await obsidian.appendToDailyNote(entry.trim());
+      const notes = await obsidian.listNotes();
+      res.json({ ok: true, message, notes });
+    } catch (err) {
+      res
+        .status(500)
+        .json({ error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+
+  app.post("/api/vault/query", async (req, res) => {
+    try {
+      const { query } = req.body as { query?: string };
+      if (!query?.trim()) {
+        res.status(400).json({ error: "Query required" });
+        return;
+      }
+      const obsidian = new ObsidianMemory();
+      const answer = await obsidian.query(query.trim());
+      const notes = await obsidian.listNotes();
+      res.json({ ok: true, answer, notes });
     } catch (err) {
       res
         .status(500)

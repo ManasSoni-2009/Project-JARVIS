@@ -11,12 +11,14 @@ import {
   Cpu,
   ExternalLink,
   FolderKanban,
+  Key,
   MessageSquare,
   Mic,
   Moon,
   MousePointerClick,
   PanelLeftClose,
   PanelLeftOpen,
+  PictureInPicture2,
   Plus,
   Search,
   Settings,
@@ -24,10 +26,12 @@ import {
   Sun,
   Terminal,
   Trash2,
+  Volume2,
   X,
 } from "lucide-react";
 import { CodexWorkbench, WorkbenchTab } from "./components/CodexWorkbench.tsx";
 import { JevPetPill } from "./components/JevPetPill.tsx";
+import { OnboardingWizard } from "./components/OnboardingWizard.tsx";
 import {
   StudioDropdown,
   StudioDropdownOption,
@@ -56,14 +60,26 @@ interface SettingsPayload {
   flash_model?: string;
   thinking_mode: "auto" | "high" | "medium" | "low";
   tts_enabled: boolean;
+  tts_engine?: "kokoro" | "gemini" | "browser_british";
+  stt_engine?: "faster_whisper" | "gemini" | "web_speech";
   tts_voice: string;
+  kokoro_url?: string;
+  whisper_url?: string;
   os_backend: "gemini_vision" | "openclaw";
   obsidian_vault_path?: string;
+  onboarding_completed?: boolean;
   has_gemini_key: boolean;
   has_openai_key: boolean;
   has_anthropic_key: boolean;
   has_openrouter_key: boolean;
   has_github_token: boolean;
+  masked_keys?: {
+    gemini?: string;
+    openai?: string;
+    anthropic?: string;
+    openrouter?: string;
+    github?: string;
+  };
 }
 
 interface DiagnosticCheckItem {
@@ -195,44 +211,146 @@ const PROVIDER_DROPDOWN_OPTIONS: StudioDropdownOption[] = [
 
 const VOICE_DROPDOWN_OPTIONS: StudioDropdownOption[] = [
   {
-    value: "Kore",
-    label: "Kore (Studio Crisp)",
-    sublabel: "gemini-3.8-flash-lite-tts · Balanced clarity",
-    badge: "24kHz",
+    value: "bm_george",
+    label: "J.A.R.V.I.S Movie Edition (bm_george · British RP)",
+    sublabel: "Kokoro-82M Neural · Matches Paul Bettany movie J.A.R.V.I.S cadence",
+    badge: "Movie Match",
+    badgeColor: "emerald",
+    dotColor: "#10B981",
+  },
+  {
+    value: "bm_lewis",
+    label: "Lewis (bm_lewis · Warm British Gentleman)",
+    sublabel: "Kokoro-82M Neural · Articulate Oxford British male",
+    badge: "Kokoro UK",
+    badgeColor: "sky",
+    dotColor: "#0EA5E9",
+  },
+  {
+    value: "bm_fable",
+    label: "Fable (bm_fable · Crisp British Tactician)",
+    sublabel: "Kokoro-82M Neural · Fast responsive British RP",
+    badge: "Kokoro UK",
+    badgeColor: "sky",
+    dotColor: "#38BDF8",
+  },
+  {
+    value: "bf_emma",
+    label: "F.R.I.D.A.Y. Edition (bf_emma · British/Celtic)",
+    sublabel: "Kokoro-82M Neural · Crisp female tactical AI assistant",
+    badge: "F.R.I.D.A.Y.",
+    badgeColor: "violet",
+    dotColor: "#A855F7",
+  },
+  {
+    value: "bf_isabella",
+    label: "Isabella (bf_isabella · Studio British Female)",
+    sublabel: "Kokoro-82M Neural · Refined warm British female",
+    badge: "Kokoro UK",
+    badgeColor: "violet",
+    dotColor: "#C084FC",
+  },
+  {
+    value: "am_adam",
+    label: "Adam (am_adam · Deep American Studio)",
+    sublabel: "Kokoro-82M Neural · Resonant American baritone",
+    badge: "Kokoro US",
+    badgeColor: "amber",
+    dotColor: "#F59E0B",
+  },
+  {
+    value: "am_michael",
+    label: "Michael (am_michael · Clear American Technical)",
+    sublabel: "Kokoro-82M Neural · Crisp engineering narration",
+    badge: "Kokoro US",
+    badgeColor: "amber",
+    dotColor: "#FBBF24",
+  },
+  {
+    value: "af_heart",
+    label: "Heart (af_heart · Expressive Flagship)",
+    sublabel: "Kokoro-82M #1 Flagship natural conversational voice",
+    badge: "Natural #1",
+    badgeColor: "emerald",
+    dotColor: "#34D399",
+  },
+  {
+    value: "af_bella",
+    label: "Bella (af_bella · Warm Natural Companion)",
+    sublabel: "Kokoro-82M Neural · Smooth lifelike American female",
+    badge: "Kokoro US",
     badgeColor: "emerald",
     dotColor: "#10B981",
   },
   {
     value: "Fenrir",
-    label: "Fenrir (J.A.R.V.I.S Baritone)",
-    sublabel: "gemini-3.8-flash-lite-tts · Deep British cadence",
-    badge: "Pro",
+    label: "Fenrir (Cloud Neural Baritone)",
+    sublabel: "Gemini 2.5 TTS · Deep resonant cloud voice",
+    badge: "24kHz",
     badgeColor: "sky",
     dotColor: "#0EA5E9",
   },
   {
-    value: "Puck",
-    label: "Puck (Expressive Reflex)",
-    sublabel: "gemini-3.8-flash-lite-tts · Lively companion tone",
-    badge: "Fast",
-    badgeColor: "amber",
-    dotColor: "#F59E0B",
+    value: "Kore",
+    label: "Kore (Cloud Studio Crisp)",
+    sublabel: "Gemini 2.5 TTS · Balanced studio clarity",
+    badge: "24kHz",
+    badgeColor: "emerald",
+    dotColor: "#10B981",
+  },
+];
+
+const TTS_ENGINE_DROPDOWN_OPTIONS: StudioDropdownOption[] = [
+  {
+    value: "kokoro",
+    label: "Kokoro-82M Neural TTS + Auto-Fallback",
+    sublabel: "Local ONNX bridge (:8880) → Cloud Neural → British RP",
+    badge: "Legacy + Pro",
+    badgeColor: "emerald",
+    dotColor: "#10B981",
   },
   {
-    value: "Charon",
-    label: "Charon (Calm Analytical)",
-    sublabel: "gemini-3.8-flash-lite-tts · Composed studio voice",
-    badge: "Calm",
+    value: "browser_british",
+    label: "Zero-Latency British RP Native Engine",
+    sublabel: "Instant offline en-GB British Male synthesis (<5ms)",
+    badge: "<5ms",
+    badgeColor: "sky",
+    dotColor: "#0EA5E9",
+  },
+  {
+    value: "gemini",
+    label: "Cloud Neural 24kHz Audio",
+    sublabel: "Direct cloud waveform synthesis + British RP fallback",
+    badge: "Cloud",
     badgeColor: "violet",
     dotColor: "#A855F7",
   },
+];
+
+const STT_ENGINE_DROPDOWN_OPTIONS: StudioDropdownOption[] = [
   {
-    value: "Zephyr",
-    label: "Zephyr (Bright Airy)",
-    sublabel: "gemini-3.8-flash-lite-tts · Warm conversational",
-    badge: "Warm",
+    value: "faster_whisper",
+    label: "Faster-Whisper Local Bridge + Hybrid",
+    sublabel: "Local CTranslate2 base.en INT8 (:8880) + Instant WebSpeech",
+    badge: "Legacy + Pro",
     badgeColor: "emerald",
-    dotColor: "#34D399",
+    dotColor: "#10B981",
+  },
+  {
+    value: "web_speech",
+    label: "Zero-Latency Native Browser Speech",
+    sublabel: "Real-time streaming voice recognition",
+    badge: "Instant",
+    badgeColor: "sky",
+    dotColor: "#0EA5E9",
+  },
+  {
+    value: "gemini",
+    label: "Cloud Multimodal Audio STT",
+    sublabel: "Server-side audio stream transcription",
+    badge: "Cloud",
+    badgeColor: "violet",
+    dotColor: "#A855F7",
   },
 ];
 
@@ -332,16 +450,31 @@ export default function App() {
   const [milestones, setMilestones] = useState<NusMilestone[]>([]);
   const [vaultNotes, setVaultNotes] = useState<VaultNoteItem[]>([]);
 
-  // Settings Modal & Toast state
+  // Settings Modal, Onboarding Wizard, Always-on-Top PiP & Toast state
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
+  const [alwaysOnTopActive, setAlwaysOnTopActive] = useState(false);
+  const [testingVoice, setTestingVoice] = useState(false);
+  const [apiKeyInputs, setApiKeyInputs] = useState({
+    gemini_api_key: "",
+    openai_api_key: "",
+    anthropic_api_key: "",
+    openrouter_api_key: "",
+    github_token: "",
+  });
   const [settings, setSettings] = useState<SettingsPayload>({
     provider: "google",
     flash_model: "gemini-4-hydrogen",
     thinking_mode: "auto",
     tts_enabled: true,
-    tts_voice: "Kore",
+    tts_engine: "kokoro",
+    stt_engine: "faster_whisper",
+    tts_voice: "bm_george",
+    kokoro_url: "http://127.0.0.1:8880/v1/audio/speech",
+    whisper_url: "http://127.0.0.1:8880/v1/audio/transcriptions",
     os_backend: "gemini_vision",
     obsidian_vault_path: "./data/vault",
+    onboarding_completed: false,
     has_gemini_key: true,
     has_openai_key: false,
     has_anthropic_key: false,
@@ -363,6 +496,8 @@ export default function App() {
   const chatEndRef = useRef<HTMLDivElement | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const speechRecRef = useRef<{ stop: () => void } | null>(null);
+  const pipWindowRef = useRef<Window | null>(null);
   const vadMonitorRef = useRef<number | null>(null);
   const toastTimerRef = useRef<number | null>(null);
   const msgSeqRef = useRef<number>(1);
@@ -540,8 +675,12 @@ export default function App() {
   }, [pipelineState]);
 
   const speakBrowserFallback = useCallback(
-    (rawText: string) => {
-      if (!settings.tts_enabled || typeof window === "undefined" || !("speechSynthesis" in window)) {
+    (rawText: string, overrideVoiceId?: string) => {
+      if (
+        (!settings.tts_enabled && !overrideVoiceId) ||
+        typeof window === "undefined" ||
+        !("speechSynthesis" in window)
+      ) {
         return;
       }
       try {
@@ -551,16 +690,66 @@ export default function App() {
           .replace(/[*_`#>•]/g, "")
           .replace(/\s+/g, " ")
           .trim()
-          .slice(0, 320);
+          .slice(0, 360);
         if (!clean) return;
+        const voiceId = overrideVoiceId || settings.tts_voice || "bm_george";
         const utter = new SpeechSynthesisUtterance(clean);
         const voices = window.speechSynthesis.getVoices();
-        const preferred =
-          voices.find((v) => /Daniel|Google UK English Male|Arthur|en-GB/i.test(v.name || v.lang)) ||
-          voices.find((v) => v.lang.startsWith("en"));
+
+        const isBritishMale =
+          voiceId === "bm_george" ||
+          voiceId === "bm_lewis" ||
+          voiceId === "bm_fable" ||
+          voiceId === "Fenrir";
+        const isBritishFemale =
+          voiceId === "bf_emma" || voiceId === "bf_isabella";
+        const isAmericanMale =
+          voiceId === "am_adam" || voiceId === "am_michael";
+
+        let preferred: SpeechSynthesisVoice | undefined;
+        if (isBritishMale) {
+          preferred =
+            voices.find((v) =>
+              /Ryan|George|Daniel|Google UK English Male|Arthur|Oliver/i.test(
+                v.name
+              )
+            ) ||
+            voices.find(
+              (v) => v.lang === "en-GB" && !/Female|Libby|Sonia|Hazel/i.test(v.name)
+            ) ||
+            voices.find((v) => v.lang.startsWith("en-GB"));
+          utter.lang = "en-GB";
+          utter.rate = voiceId === "bm_fable" ? 1.06 : 1.03;
+          utter.pitch = voiceId === "bm_george" ? 0.94 : 0.96;
+        } else if (isBritishFemale) {
+          preferred =
+            voices.find((v) =>
+              /Sonia|Libby|Google UK English Female|Martha|Serena|Emma/i.test(
+                v.name
+              )
+            ) || voices.find((v) => v.lang.startsWith("en-GB"));
+          utter.lang = "en-GB";
+          utter.rate = 1.04;
+          utter.pitch = 1.03;
+        } else if (isAmericanMale) {
+          preferred =
+            voices.find((v) =>
+              /Guy|Christopher|Eric|Roger|Alex|Aaron/i.test(v.name)
+            ) || voices.find((v) => v.lang.startsWith("en-US"));
+          utter.lang = "en-US";
+          utter.rate = 1.02;
+          utter.pitch = 0.95;
+        } else {
+          preferred =
+            voices.find((v) =>
+              /Aria|Jenny|Samantha|Ava|Google US English/i.test(v.name)
+            ) || voices.find((v) => v.lang.startsWith("en"));
+          utter.lang = "en-US";
+          utter.rate = 1.03;
+          utter.pitch = 1.02;
+        }
+
         if (preferred) utter.voice = preferred;
-        utter.rate = 1.05;
-        utter.pitch = 0.98;
         utter.onstart = () => setPillMood("speaking");
         utter.onend = () => setPillMood("idle");
         utter.onerror = () => setPillMood("idle");
@@ -569,7 +758,7 @@ export default function App() {
         // Ignore speech synthesis errors
       }
     },
-    [settings.tts_enabled]
+    [settings.tts_enabled, settings.tts_voice]
   );
 
   const playAudioBase64 = useCallback((base64Data: string) => {
@@ -833,7 +1022,13 @@ export default function App() {
 
     fetch("/api/settings")
       .then((r) => r.json())
-      .then((data) => setSettings((prev) => ({ ...prev, ...data })))
+      .then((data: SettingsPayload) => {
+        setSettings((prev) => ({ ...prev, ...data }));
+        const localOnboarded = localStorage.getItem("jarvis_v3_onboarded");
+        if (!data.onboarding_completed && !localOnboarded) {
+          setOnboardingOpen(true);
+        }
+      })
       .catch(() => {});
 
     fetch("/api/update/status")
@@ -949,11 +1144,19 @@ export default function App() {
     ]
   );
 
-  // Voice Recording
+  // Voice Recording (Faster-Whisper Bridge + Instant Browser SpeechRecognition Hybrid)
   const stopRecording = useCallback(() => {
     if (vadMonitorRef.current) {
       window.clearInterval(vadMonitorRef.current);
       vadMonitorRef.current = null;
+    }
+    if (speechRecRef.current) {
+      try {
+        speechRecRef.current.stop();
+      } catch {
+        // ignore
+      }
+      speechRecRef.current = null;
     }
     setIsRecording(false);
     if (
@@ -970,7 +1173,50 @@ export default function App() {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       setIsRecording(true);
       setPillMood("listening");
-      setPillSubtitle("Listening to microphone stream...");
+      setPillSubtitle(
+        `Listening (${
+          settings.stt_engine === "faster_whisper"
+            ? "Faster-Whisper + Live STT"
+            : "Live Voice Stream"
+        })...`
+      );
+
+      let browserRecognizedText = "";
+      const SpeechRecCtor =
+        (window as unknown as { SpeechRecognition?: new () => unknown })
+          .SpeechRecognition ||
+        (window as unknown as { webkitSpeechRecognition?: new () => unknown })
+          .webkitSpeechRecognition;
+
+      if (SpeechRecCtor) {
+        try {
+          const rec = new SpeechRecCtor() as {
+            continuous: boolean;
+            interimResults: boolean;
+            lang: string;
+            onresult: ((e: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null;
+            start: () => void;
+            stop: () => void;
+          };
+          rec.continuous = false;
+          rec.interimResults = true;
+          rec.lang = "en-US";
+          rec.onresult = (event) => {
+            let transcript = "";
+            for (let i = 0; i < event.results.length; i++) {
+              transcript += event.results[i][0].transcript;
+            }
+            if (transcript.trim()) {
+              browserRecognizedText = transcript.trim();
+              setPillSubtitle(`Heard: "${browserRecognizedText.slice(0, 42)}"`);
+            }
+          };
+          rec.start();
+          speechRecRef.current = rec;
+        } catch {
+          // ignore if SpeechRecognition is unavailable
+        }
+      }
 
       const options: MediaRecorderOptions = {};
       if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) {
@@ -989,12 +1235,21 @@ export default function App() {
 
       recorder.onstop = async () => {
         stream.getTracks().forEach((t) => t.stop());
+        if (
+          settings.stt_engine === "web_speech" &&
+          browserRecognizedText.trim()
+        ) {
+          sendCommand(browserRecognizedText.trim());
+          return;
+        }
         if (chunks.length > 0 && wsRef.current?.readyState === WebSocket.OPEN) {
           const blob = new Blob(chunks, {
             type: options.mimeType || "audio/webm",
           });
           const buf = await blob.arrayBuffer();
           wsRef.current.send(buf);
+        } else if (browserRecognizedText.trim()) {
+          sendCommand(browserRecognizedText.trim());
         }
       };
 
@@ -1030,7 +1285,14 @@ export default function App() {
       setIsRecording(false);
       showToast("Microphone access denied");
     }
-  }, [isRecording, showToast, stopRecording, vadEnabled]);
+  }, [
+    isRecording,
+    sendCommand,
+    settings.stt_engine,
+    showToast,
+    stopRecording,
+    vadEnabled,
+  ]);
 
   // Inspector Handlers
   const handleExecuteDesktopCommand = useCallback(
@@ -1196,6 +1458,231 @@ export default function App() {
     [showToast]
   );
 
+  const handleDeleteVaultNote = useCallback(
+    async (stem: string) => {
+      const res = await fetch(`/api/vault/note/${encodeURIComponent(stem)}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (data.notes) {
+        setVaultNotes(data.notes);
+        showToast(`Removed '${stem}.md' from Obsidian Vault`);
+      }
+    },
+    [showToast]
+  );
+
+  const handleAppendDailyNote = useCallback(
+    async (entry: string) => {
+      const res = await fetch("/api/vault/daily", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entry }),
+      });
+      const data = await res.json();
+      if (data.notes) {
+        setVaultNotes(data.notes);
+        showToast("Logged entry to today's Daily Note");
+      }
+    },
+    [showToast]
+  );
+
+  const handleTestVoiceSample = useCallback(
+    async (voiceId?: string) => {
+      const targetVoice = voiceId || settings.tts_voice || "bm_george";
+      setTestingVoice(true);
+      setPillMood("speaking");
+      const sampleText =
+        targetVoice === "bf_emma"
+          ? "All diagnostic and tactical subsystems are online, Boss. F.R.I.D.A.Y. standing by."
+          : "Good day, Sir. All J.A.R.V.I.S Studio subsystems, Obsidian memory graphs, and semantic desktop references are online and at your service.";
+      try {
+        const res = await fetch("/api/voice/test", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            voiceId: targetVoice,
+            text: sampleText,
+          }),
+        });
+        const data = await res.json();
+        if (data.audioBase64) {
+          playAudioBase64(data.audioBase64);
+          showToast(`Playing ${targetVoice} neural voice sample`);
+        } else {
+          speakBrowserFallback(sampleText, targetVoice);
+          showToast(`Playing ${targetVoice} British RP voice sample`);
+        }
+      } catch {
+        speakBrowserFallback(sampleText, targetVoice);
+      } finally {
+        setTestingVoice(false);
+      }
+    },
+    [playAudioBase64, settings.tts_voice, showToast, speakBrowserFallback]
+  );
+
+  // Always-On-Top OS Floating Pill Window (Document Picture-in-Picture API)
+  const launchAlwaysOnTopOsPill = useCallback(async () => {
+    try {
+      if (pipWindowRef.current && !pipWindowRef.current.closed) {
+        pipWindowRef.current.focus();
+        return;
+      }
+
+      const docPip = (
+        window as unknown as {
+          documentPictureInPicture?: {
+            requestWindow: (opts: {
+              width: number;
+              height: number;
+            }) => Promise<Window>;
+          };
+        }
+      ).documentPictureInPicture;
+
+      if (docPip) {
+        const pipWin = await docPip.requestWindow({ width: 268, height: 144 });
+        pipWindowRef.current = pipWin;
+        setAlwaysOnTopActive(true);
+
+        pipWin.document.head.innerHTML = `
+          <title>J.A.R.V.I.S Companion</title>
+          <style>
+            * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+            body {
+              background: #090A0F;
+              color: #F5F5F7;
+              font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", sans-serif;
+              height: 100vh;
+              width: 100vw;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+              gap: 10px;
+              overflow: hidden;
+              padding: 12px;
+            }
+            .visor-pill {
+              width: 146px;
+              height: 54px;
+              border-radius: 9999px;
+              background: radial-gradient(125% 110% at 50% 15%, #1D2233 0%, #0E1017 58%, #07080C 100%);
+              border: 1.5px solid rgba(56, 189, 248, 0.55);
+              box-shadow: 0 12px 32px rgba(14, 165, 233, 0.28), inset 0 1.5px 2px rgba(255,255,255,0.22);
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              gap: 24px;
+              cursor: pointer;
+              transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.22s;
+            }
+            .visor-pill:hover {
+              transform: scale(1.07);
+              border-color: rgba(16, 185, 129, 0.8);
+            }
+            .visor-pill:active {
+              transform: scale(0.95);
+            }
+            .eye {
+              width: 11px;
+              height: 17px;
+              border-radius: 9999px;
+              background: #38BDF8;
+              box-shadow: 0 0 14px #38BDF8;
+              animation: blink 4.2s infinite ease-in-out;
+            }
+            @keyframes blink {
+              0%, 92%, 100% { transform: scaleY(1); }
+              96% { transform: scaleY(0.12); }
+            }
+            .hud-row {
+              display: flex;
+              align-items: center;
+              gap: 6px;
+            }
+            .hud-btn {
+              background: rgba(255,255,255,0.08);
+              border: 1px solid rgba(255,255,255,0.12);
+              color: #E4E4E7;
+              font-size: 10.5px;
+              font-weight: 600;
+              padding: 4px 10px;
+              border-radius: 9999px;
+              cursor: pointer;
+              transition: background 0.15s;
+            }
+            .hud-btn:hover {
+              background: rgba(56, 189, 248, 0.22);
+              color: #fff;
+            }
+            .status {
+              font-size: 10px;
+              font-family: ui-monospace, monospace;
+              color: #94A3B8;
+              text-align: center;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              max-width: 240px;
+            }
+          </style>
+        `;
+
+        pipWin.document.body.innerHTML = `
+          <div class="visor-pill" id="jarvis-pip-pill" title="Click to toggle voice command">
+            <div class="eye" id="eye-l"></div>
+            <div class="eye" id="eye-r"></div>
+          </div>
+          <div class="hud-row">
+            <button class="hud-btn" id="pip-voice-btn">🎙️ Voice</button>
+            <button class="hud-btn" id="pip-ci-btn">⚡ @e4 CI</button>
+            <button class="hud-btn" id="pip-studio-btn">↗ Studio</button>
+          </div>
+          <div class="status" id="pip-status">Always-On-Top OS Companion Ready</div>
+        `;
+
+        const pillEl = pipWin.document.getElementById("jarvis-pip-pill");
+        const voiceBtn = pipWin.document.getElementById("pip-voice-btn");
+        const ciBtn = pipWin.document.getElementById("pip-ci-btn");
+        const studioBtn = pipWin.document.getElementById("pip-studio-btn");
+        const statusEl = pipWin.document.getElementById("pip-status");
+
+        const triggerVoice = () => {
+          if (statusEl) statusEl.textContent = "Listening to microphone...";
+          void startRecording();
+        };
+
+        pillEl?.addEventListener("click", triggerVoice);
+        voiceBtn?.addEventListener("click", triggerVoice);
+        ciBtn?.addEventListener("click", () => {
+          if (statusEl) statusEl.textContent = "Executing @e4 CI Runner...";
+          sendCommand("Click @e4 to run the CI build and test suite");
+        });
+        studioBtn?.addEventListener("click", () => {
+          window.focus();
+          setFocusAwayPillMode(false);
+        });
+
+        pipWin.addEventListener("pagehide", () => {
+          setAlwaysOnTopActive(false);
+          pipWindowRef.current = null;
+        });
+
+        showToast("Launched Always-On-Top OS Companion Pill");
+        return;
+      }
+
+      setFocusAwayPillMode(true);
+      showToast("Companion Pill pinned to workspace");
+    } catch {
+      setFocusAwayPillMode(true);
+      showToast("Switched to Companion Pill view");
+    }
+  }, [sendCommand, showToast, startRecording]);
+
   const handleTerminalCommandSubmit = useCallback(
     (e: React.FormEvent) => {
       e.preventDefault();
@@ -1236,23 +1723,55 @@ export default function App() {
 
   const saveSettings = async () => {
     try {
+      const payload: Record<string, unknown> = {
+        provider: settings.provider,
+        flash_model: settings.flash_model || "gemini-4-hydrogen",
+        thinking_mode: settings.thinking_mode,
+        tts_enabled: settings.tts_enabled,
+        tts_engine: settings.tts_engine || "kokoro",
+        stt_engine: settings.stt_engine || "faster_whisper",
+        tts_voice: settings.tts_voice || "bm_george",
+        kokoro_url:
+          settings.kokoro_url || "http://127.0.0.1:8880/v1/audio/speech",
+        whisper_url:
+          settings.whisper_url ||
+          "http://127.0.0.1:8880/v1/audio/transcriptions",
+        os_backend: settings.os_backend,
+        obsidian_vault_path: settings.obsidian_vault_path || "./data/vault",
+      };
+
+      if (apiKeyInputs.gemini_api_key.trim()) {
+        payload.gemini_api_key = apiKeyInputs.gemini_api_key.trim();
+      }
+      if (apiKeyInputs.openai_api_key.trim()) {
+        payload.openai_api_key = apiKeyInputs.openai_api_key.trim();
+      }
+      if (apiKeyInputs.anthropic_api_key.trim()) {
+        payload.anthropic_api_key = apiKeyInputs.anthropic_api_key.trim();
+      }
+      if (apiKeyInputs.openrouter_api_key.trim()) {
+        payload.openrouter_api_key = apiKeyInputs.openrouter_api_key.trim();
+      }
+      if (apiKeyInputs.github_token.trim()) {
+        payload.github_token = apiKeyInputs.github_token.trim();
+      }
+
       const res = await fetch("/api/settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          provider: settings.provider,
-          flash_model: settings.flash_model || "gemini-4-hydrogen",
-          thinking_mode: settings.thinking_mode,
-          tts_enabled: settings.tts_enabled,
-          tts_voice: settings.tts_voice,
-          os_backend: settings.os_backend,
-          obsidian_vault_path: settings.obsidian_vault_path || "./data/vault",
-        }),
+        body: JSON.stringify(payload),
       });
       if (res.ok) {
         const updated = await res.json();
         setSettings((prev) => ({ ...prev, ...updated }));
-        showToast("Saved Studio setup to ./data/settings.json");
+        setApiKeyInputs({
+          gemini_api_key: "",
+          openai_api_key: "",
+          anthropic_api_key: "",
+          openrouter_api_key: "",
+          github_token: "",
+        });
+        showToast("Saved API keys & engine setup to .env & settings.json");
         setSettingsOpen(false);
       }
     } catch {
@@ -1604,7 +2123,7 @@ export default function App() {
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center justify-between gap-1.5">
                       <button
                         type="button"
                         onClick={() =>
@@ -1612,7 +2131,7 @@ export default function App() {
                             prev === "light" ? "dark" : "light"
                           )
                         }
-                        className="studio-btn flex-1 h-8 px-2.5 rounded-[10px] bg-black/[0.05] dark:bg-white/[0.07] hover:bg-black/[0.09] dark:hover:bg-white/[0.12] text-xs font-medium text-[#1D1D1F] dark:text-zinc-200 inline-flex items-center justify-center gap-1.5 cursor-pointer"
+                        className="studio-btn flex-1 h-8 px-2 rounded-[10px] bg-black/[0.05] dark:bg-white/[0.07] hover:bg-black/[0.09] dark:hover:bg-white/[0.12] text-xs font-medium text-[#1D1D1F] dark:text-zinc-200 inline-flex items-center justify-center gap-1 cursor-pointer"
                       >
                         {theme === "light" ? (
                           <>
@@ -1629,8 +2148,18 @@ export default function App() {
 
                       <button
                         type="button"
+                        onClick={() => setOnboardingOpen(true)}
+                        title="Interactive First-Boot Setup Wizard"
+                        className="studio-btn h-8 px-2 rounded-[10px] bg-black/[0.05] dark:bg-white/[0.07] hover:bg-black/[0.09] dark:hover:bg-white/[0.12] text-xs font-medium text-[#1D1D1F] dark:text-zinc-200 inline-flex items-center justify-center gap-1 cursor-pointer"
+                      >
+                        <Sparkles className="w-3.5 h-3.5 text-sky-500" />
+                        <span>Wizard</span>
+                      </button>
+
+                      <button
+                        type="button"
                         onClick={() => setSettingsOpen(true)}
-                        className="studio-btn h-8 px-2.5 rounded-[10px] bg-black/[0.05] dark:bg-white/[0.07] hover:bg-black/[0.09] dark:hover:bg-white/[0.12] text-xs font-medium text-[#1D1D1F] dark:text-zinc-200 inline-flex items-center justify-center gap-1.5 cursor-pointer"
+                        className="studio-btn h-8 px-2.5 rounded-[10px] bg-black/[0.05] dark:bg-white/[0.07] hover:bg-black/[0.09] dark:hover:bg-white/[0.12] text-xs font-medium text-[#1D1D1F] dark:text-zinc-200 inline-flex items-center justify-center gap-1 cursor-pointer"
                       >
                         <Settings className="w-3.5 h-3.5" />
                         <span>Engine</span>
@@ -1738,16 +2267,18 @@ export default function App() {
 
                   <button
                     type="button"
-                    onClick={() => {
-                      setFocusAwayPillMode(true);
-                      setPillMood("reflex_zap");
-                      setPillSubtitle(
-                        "Companion active! Tap or drag me in the corner."
-                      );
-                    }}
-                    className="studio-btn h-8 px-3 rounded-[10px] bg-[#1D1D1F] dark:bg-white text-white dark:text-[#1D1D1F] text-[11.5px] font-semibold cursor-pointer whitespace-nowrap"
+                    onClick={() => void launchAlwaysOnTopOsPill()}
+                    title="Float J.A.R.V.I.S Pill on top of all OS windows when switching tasks"
+                    className={`studio-btn h-8 px-2.5 rounded-[10px] text-[11.5px] font-semibold inline-flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+                      alwaysOnTopActive
+                        ? "bg-emerald-500 text-white"
+                        : "bg-[#1D1D1F] dark:bg-white text-white dark:text-[#1D1D1F]"
+                    }`}
                   >
-                    Companion
+                    <PictureInPicture2 className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">
+                      {alwaysOnTopActive ? "OS Float Active" : "Companion"}
+                    </span>
                   </button>
                 </div>
               </header>
@@ -2148,6 +2679,8 @@ export default function App() {
                   onDeleteMilestone={handleDeleteMilestone}
                   vaultNotes={vaultNotes}
                   onCreateVaultNote={handleCreateVaultNote}
+                  onDeleteVaultNote={handleDeleteVaultNote}
+                  onAppendDailyNote={handleAppendDailyNote}
                 />
               )}
             </AnimatePresence>
@@ -2336,6 +2869,163 @@ export default function App() {
               </div>
 
               <div className="space-y-3.5 text-xs">
+                {/* In-GUI API Keys & Credentials Section */}
+                <div className="p-3.5 rounded-[14px] bg-[#F5F5F7] dark:bg-[#101015] border border-black/[0.06] dark:border-white/[0.08] space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 font-semibold text-[#1D1D1F] dark:text-white">
+                      <Key className="w-3.5 h-3.5 text-sky-500" />
+                      <span>API Keys & Credentials (Saved to .env)</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSettingsOpen(false);
+                        setOnboardingOpen(true);
+                      }}
+                      className="studio-btn px-2 py-0.5 rounded-[7px] bg-sky-500/12 text-sky-600 dark:text-sky-400 text-[10.5px] font-semibold cursor-pointer"
+                    >
+                      Open Setup Wizard
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="block text-[10.5px] font-mono text-[#6E6E73] dark:text-zinc-400 mb-1">
+                        GEMINI_API_KEY{" "}
+                        {settings.masked_keys?.gemini
+                          ? `(${settings.masked_keys.gemini})`
+                          : settings.has_gemini_key
+                          ? "(Active)"
+                          : "(Not set)"}
+                      </label>
+                      <input
+                        type="password"
+                        value={apiKeyInputs.gemini_api_key}
+                        onChange={(e) =>
+                          setApiKeyInputs((prev) => ({
+                            ...prev,
+                            gemini_api_key: e.target.value,
+                          }))
+                        }
+                        placeholder={
+                          settings.has_gemini_key
+                            ? "•••••••••••••••• (Configured)"
+                            : "AIzaSy..."
+                        }
+                        className="w-full h-8 px-2.5 rounded-[9px] bg-white dark:bg-[#16161D] border border-black/[0.08] dark:border-white/[0.1] font-mono text-[11px] text-[#1D1D1F] dark:text-zinc-200 outline-none focus:border-sky-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10.5px] font-mono text-[#6E6E73] dark:text-zinc-400 mb-1">
+                        OPENAI_API_KEY{" "}
+                        {settings.masked_keys?.openai
+                          ? `(${settings.masked_keys.openai})`
+                          : settings.has_openai_key
+                          ? "(Active)"
+                          : "(Optional)"}
+                      </label>
+                      <input
+                        type="password"
+                        value={apiKeyInputs.openai_api_key}
+                        onChange={(e) =>
+                          setApiKeyInputs((prev) => ({
+                            ...prev,
+                            openai_api_key: e.target.value,
+                          }))
+                        }
+                        placeholder={
+                          settings.has_openai_key
+                            ? "•••••••••••••••• (Configured)"
+                            : "sk-proj-..."
+                        }
+                        className="w-full h-8 px-2.5 rounded-[9px] bg-white dark:bg-[#16161D] border border-black/[0.08] dark:border-white/[0.1] font-mono text-[11px] text-[#1D1D1F] dark:text-zinc-200 outline-none focus:border-sky-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10.5px] font-mono text-[#6E6E73] dark:text-zinc-400 mb-1">
+                        ANTHROPIC_API_KEY{" "}
+                        {settings.masked_keys?.anthropic
+                          ? `(${settings.masked_keys.anthropic})`
+                          : settings.has_anthropic_key
+                          ? "(Active)"
+                          : "(Optional)"}
+                      </label>
+                      <input
+                        type="password"
+                        value={apiKeyInputs.anthropic_api_key}
+                        onChange={(e) =>
+                          setApiKeyInputs((prev) => ({
+                            ...prev,
+                            anthropic_api_key: e.target.value,
+                          }))
+                        }
+                        placeholder={
+                          settings.has_anthropic_key
+                            ? "•••••••••••••••• (Configured)"
+                            : "sk-ant-..."
+                        }
+                        className="w-full h-8 px-2.5 rounded-[9px] bg-white dark:bg-[#16161D] border border-black/[0.08] dark:border-white/[0.1] font-mono text-[11px] text-[#1D1D1F] dark:text-zinc-200 outline-none focus:border-sky-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10.5px] font-mono text-[#6E6E73] dark:text-zinc-400 mb-1">
+                        OPENROUTER_API_KEY{" "}
+                        {settings.masked_keys?.openrouter
+                          ? `(${settings.masked_keys.openrouter})`
+                          : settings.has_openrouter_key
+                          ? "(Active)"
+                          : "(Optional)"}
+                      </label>
+                      <input
+                        type="password"
+                        value={apiKeyInputs.openrouter_api_key}
+                        onChange={(e) =>
+                          setApiKeyInputs((prev) => ({
+                            ...prev,
+                            openrouter_api_key: e.target.value,
+                          }))
+                        }
+                        placeholder={
+                          settings.has_openrouter_key
+                            ? "•••••••••••••••• (Configured)"
+                            : "sk-or-v1-..."
+                        }
+                        className="w-full h-8 px-2.5 rounded-[9px] bg-white dark:bg-[#16161D] border border-black/[0.08] dark:border-white/[0.1] font-mono text-[11px] text-[#1D1D1F] dark:text-zinc-200 outline-none focus:border-sky-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10.5px] font-mono text-[#6E6E73] dark:text-zinc-400 mb-1">
+                      GITHUB_TOKEN{" "}
+                      {settings.masked_keys?.github
+                        ? `(${settings.masked_keys.github})`
+                        : settings.has_github_token
+                        ? "(Active)"
+                        : "(Optional · GitHub Sync & Releases)"}
+                    </label>
+                    <input
+                      type="password"
+                      value={apiKeyInputs.github_token}
+                      onChange={(e) =>
+                        setApiKeyInputs((prev) => ({
+                          ...prev,
+                          github_token: e.target.value,
+                        }))
+                      }
+                      placeholder={
+                        settings.has_github_token
+                          ? "•••••••••••••••• (Configured)"
+                          : "ghp_..."
+                      }
+                      className="w-full h-8 px-2.5 rounded-[9px] bg-white dark:bg-[#16161D] border border-black/[0.08] dark:border-white/[0.1] font-mono text-[11px] text-[#1D1D1F] dark:text-zinc-200 outline-none focus:border-sky-500"
+                    />
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block font-semibold text-[#3A3A3C] dark:text-zinc-300 mb-1.5">
@@ -2382,6 +3072,47 @@ export default function App() {
                   </div>
                 </div>
 
+                {/* Kokoro-82M TTS + Faster-Whisper STT Selectors */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-semibold text-[#3A3A3C] dark:text-zinc-300 mb-1.5">
+                      TTS Synthesis Engine
+                    </label>
+                    <StudioDropdown
+                      value={settings.tts_engine || "kokoro"}
+                      options={TTS_ENGINE_DROPDOWN_OPTIONS}
+                      onChange={(val) =>
+                        setSettings((s) => ({
+                          ...s,
+                          tts_engine: val as SettingsPayload["tts_engine"],
+                        }))
+                      }
+                      size="md"
+                      className="w-full"
+                      menuWidthClass="w-full"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-[#3A3A3C] dark:text-zinc-300 mb-1.5">
+                      STT Recognition Engine
+                    </label>
+                    <StudioDropdown
+                      value={settings.stt_engine || "faster_whisper"}
+                      options={STT_ENGINE_DROPDOWN_OPTIONS}
+                      onChange={(val) =>
+                        setSettings((s) => ({
+                          ...s,
+                          stt_engine: val as SettingsPayload["stt_engine"],
+                        }))
+                      }
+                      size="md"
+                      className="w-full"
+                      menuWidthClass="w-full"
+                    />
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block font-semibold text-[#3A3A3C] dark:text-zinc-300 mb-1.5">
@@ -2404,16 +3135,27 @@ export default function App() {
                   </div>
 
                   <div>
-                    <label className="block font-semibold text-[#3A3A3C] dark:text-zinc-300 mb-1.5">
-                      Neural Voice Persona
-                    </label>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="font-semibold text-[#3A3A3C] dark:text-zinc-300">
+                        J.A.R.V.I.S Voice Persona
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => void handleTestVoiceSample()}
+                        disabled={testingVoice}
+                        className="studio-btn px-2 py-0.5 rounded-[7px] bg-emerald-500/12 text-emerald-600 dark:text-emerald-400 text-[10.5px] font-semibold inline-flex items-center gap-1 cursor-pointer"
+                      >
+                        <Volume2 className="w-3 h-3" />
+                        <span>{testingVoice ? "Speaking..." : "Test Voice"}</span>
+                      </button>
+                    </div>
                     <StudioDropdown
                       value={
                         VOICE_DROPDOWN_OPTIONS.some(
                           (o) => o.value === settings.tts_voice
                         )
                           ? settings.tts_voice
-                          : "Kore"
+                          : "bm_george"
                       }
                       options={VOICE_DROPDOWN_OPTIONS}
                       onChange={(val) =>
@@ -2448,6 +3190,48 @@ export default function App() {
                   />
                 </div>
 
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-semibold text-[#3A3A3C] dark:text-zinc-300 mb-1.5">
+                      Kokoro-82M Bridge URL
+                    </label>
+                    <input
+                      type="text"
+                      value={
+                        settings.kokoro_url ||
+                        "http://127.0.0.1:8880/v1/audio/speech"
+                      }
+                      onChange={(e) =>
+                        setSettings((s) => ({
+                          ...s,
+                          kokoro_url: e.target.value,
+                        }))
+                      }
+                      className="w-full h-9 px-3 rounded-[11px] bg-[#F5F5F7] dark:bg-[#101015] border border-black/[0.08] dark:border-white/[0.1] font-mono text-[11px] text-[#1D1D1F] dark:text-zinc-200 outline-none focus:border-sky-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-[#3A3A3C] dark:text-zinc-300 mb-1.5">
+                      Faster-Whisper Bridge URL
+                    </label>
+                    <input
+                      type="text"
+                      value={
+                        settings.whisper_url ||
+                        "http://127.0.0.1:8880/v1/audio/transcriptions"
+                      }
+                      onChange={(e) =>
+                        setSettings((s) => ({
+                          ...s,
+                          whisper_url: e.target.value,
+                        }))
+                      }
+                      className="w-full h-9 px-3 rounded-[11px] bg-[#F5F5F7] dark:bg-[#101015] border border-black/[0.08] dark:border-white/[0.1] font-mono text-[11px] text-[#1D1D1F] dark:text-zinc-200 outline-none focus:border-sky-500"
+                    />
+                  </div>
+                </div>
+
                 <div>
                   <label className="block font-semibold text-[#3A3A3C] dark:text-zinc-300 mb-1.5">
                     Obsidian Second Brain Vault Directory
@@ -2468,7 +3252,7 @@ export default function App() {
 
                 <div className="flex items-center justify-between py-1">
                   <span className="font-semibold text-[#3A3A3C] dark:text-zinc-300">
-                    Neural TTS Voice Responses (`gemini-3.8-flash-lite-tts`)
+                    Kokoro-82M / Neural TTS Voice Responses
                   </span>
                   <input
                     type="checkbox"
@@ -2555,6 +3339,45 @@ export default function App() {
         )}
       </AnimatePresence>
 
+      {/* INTERACTIVE FIRST-BOOT ONBOARDING & SETUP WIZARD */}
+      <OnboardingWizard
+        open={onboardingOpen}
+        theme={theme}
+        onToggleTheme={(next) => setTheme(next)}
+        settings={settings}
+        onChangeSettings={setSettings}
+        credentials={apiKeyInputs}
+        onChangeCredentials={setApiKeyInputs}
+        providerOptions={PROVIDER_DROPDOWN_OPTIONS}
+        modelOptions={MODEL_DROPDOWN_OPTIONS}
+        thinkingOptions={THINKING_DROPDOWN_OPTIONS}
+        voiceOptions={VOICE_DROPDOWN_OPTIONS}
+        ttsEngineOptions={TTS_ENGINE_DROPDOWN_OPTIONS}
+        sttEngineOptions={STT_ENGINE_DROPDOWN_OPTIONS}
+        onTestVoiceSample={(voiceId) => void handleTestVoiceSample(voiceId)}
+        testingVoice={testingVoice}
+        onLaunchAlwaysOnTopPip={() => void launchAlwaysOnTopOsPill()}
+        onRunDiagnostics={runStudioDiagnostics}
+        runningDiagnostics={runningDiagnostics}
+        diagnosticsChecks={diagnosticsChecks}
+        onCompleteOnboarding={async () => {
+          localStorage.setItem("jarvis_v3_onboarded", "true");
+          await saveSettings();
+          await fetch("/api/settings", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ onboarding_completed: true }),
+          }).catch(() => {});
+          setOnboardingOpen(false);
+          refreshTelemetryData();
+          showToast("J.A.R.V.I.S v3.0 Studio configured & ready");
+        }}
+        onClose={() => {
+          localStorage.setItem("jarvis_v3_onboarded", "true");
+          setOnboardingOpen(false);
+        }}
+      />
+
       {/* TOAST NOTIFICATION */}
       <AnimatePresence>
         {toast && (
@@ -2584,6 +3407,8 @@ export default function App() {
         onRestoreMainView={() => setFocusAwayPillMode(false)}
         onSelectMood={(m) => setPillMood(m)}
         onQuickCommand={(cmd) => sendCommand(cmd)}
+        onLaunchAlwaysOnTopPip={() => void launchAlwaysOnTopOsPill()}
+        isAlwaysOnTopActive={alwaysOnTopActive}
       />
     </div>
   );
