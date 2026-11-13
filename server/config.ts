@@ -85,7 +85,12 @@ export function getProviderKeyStatus() {
     has_openai_key: Boolean(process.env.OPENAI_API_KEY),
     has_anthropic_key: Boolean(process.env.ANTHROPIC_API_KEY),
     has_openrouter_key: Boolean(process.env.OPENROUTER_API_KEY),
-    has_github_token: Boolean(process.env.GITHUB_TOKEN),
+    has_github_token: Boolean(
+      process.env.GITHUB_TOKEN ||
+        process.env.GH_TOKEN ||
+        process.env.GITHUB_SECRET ||
+        process.env.GITHUB_PAT
+    ),
   };
 }
 

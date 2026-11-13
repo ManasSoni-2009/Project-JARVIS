@@ -7,30 +7,37 @@
 <br>
 
 <picture>
-  <img alt="JARVIS Arc Reactor" src="./assets/arc-reactor.svg" width="150" height="150">
+  <img alt="JARVIS Arc Reactor" src="./assets/arc-reactor.svg" width="140" height="140">
 </picture>
 
-### Just A Rather Very Intelligent System
+# J.A.R.V.I.S v3.0 (Release V3)
 
-**Open-source, voice-controlled, multi-agent AI framework for Windows**
+**Just A Rather Very Intelligent System — Full-Stack Agentic Studio, `<3ms` Jev System-1 Reflex Harness, OpenJarvis 5-Primitive Engine & Minimal Hardware-Grade Companion UI**
 
-Built with LangGraph | Kokoro TTS | Browser-Use | OpenClaw | Multi-Provider LLM
-
-[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![Release: v3.0.0](https://img.shields.io/badge/release-v3.0.0%20(V3)-0EA5E9.svg)](https://github.com/ManasSoni-2009/Project-JARVIS/releases)
+[![Runtime: Node.js 22+ & TypeScript](https://img.shields.io/badge/runtime-Node.js%2022%2B%20%7C%20TypeScript%207-3178C6.svg)](https://nodejs.org/)
+[![Frontend: React 19 + Vite 8 + Tailwind v4 + GSAP](https://img.shields.io/badge/ui-React%2019%20%7C%20Tailwind%20v4%20%7C%20GSAP%203.15-10B981.svg)](https://react.dev/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
 </div>
 
 ---
 
-## What is J.A.R.V.I.S?
+## Overview — What's New in Release V3 (`v3.0.0`)
 
-J.A.R.V.I.S is a free, fast, and intelligent AI assistant framework that brings Tony Stark's AI butler to life. It combines **voice interaction**, **autonomous web browsing**, **Windows desktop control**, and **multi-provider LLM intelligence** into a single, cohesive system you run locally.
+**J.A.R.V.I.S v3.0** is a ground-up architectural and visual evolution into a full-stack **TypeScript / Node.js / React 19** agentic workspace combining three foundational systems:
 
-Unlike chatbots that just talk, J.A.R.V.I.S **acts** -- it can open your Chrome browser, search the web, navigate websites, launch Windows applications, click buttons, type text, manage files, and interact with your Obsidian knowledge base, all through natural voice or text commands.
-
-### Key Features
+1. **OpenJarvis 5-Primitive Core ([`open-jarvis/openjarvis`](https://github.com/open-jarvis/openjarvis))**:
+   - **Intelligence**: Multi-model cascade (`gemini-4-hydrogen` → `gemini-3.1-flash-lite` → `OpenJarvis Local Cognitive Synthesis`) with a 5-minute quota circuit-breaker, plus `gemini-3.5-transcribe` STT and `gemini-3.8-flash-lite-tts` Neural TTS (`Kore`, `Fenrir`, `Puck`, `Charon`, `Zephyr`).
+   - **InferenceEngine**: Prompt-normalized LRU response cache (`1ms` cache hits) + real-time full-duplex WebSocket event streaming (`/ws`).
+   - **Agentic Logic**: 7-way specialist orchestration (`agent_desktop`, `codex_diff`, `nus_organizer`, `obsidian`, `mcp_tool`, `browser`, `chat`).
+   - **Tools & Memory**: Persistent multi-session memory (`./data/sessions.json`) with strictly monotonic turn keys + Obsidian Second Brain markdown vault (`./data/vault`).
+   - **Learning & Telemetry**: Real-time `OpenJarvisTrace` execution traces measuring System-1 vs. System-2 latency and energy efficiency scores.
+2. **Jev System-1 Fast Reflex Harness ([`potlakai/nus-desktop`](https://github.com/potlakai/nus-desktop) inspired)**:
+   - Deterministic **`1ms–3ms`** intent triage and multi-`@ref` extraction with zero pre-flight LLM network overhead.
+   - Built-in **NŪS Companion Milestone & Deadline Organizer** for natural-language task capture and syllabus extraction.
+3. **Semantic Desktop Automation ([`vercel-labs/agent-desktop`](https://github.com/vercel-labs/agent-desktop))**:
+   - Maps desktop windows and controls into **17 deterministic `@ref` accessibility nodes (`@e1`–`@e17`)** across 3 interactive workspace windows with `snapshot`, `click`, `type`, `press`, and `focus` commands, plus a **Local CLI Bridge** (`ws://127.0.0.1:44820`).
 
 <div align="center">
   <picture>
@@ -38,18 +45,18 @@ Unlike chatbots that just talk, J.A.R.V.I.S **acts** -- it can open your Chrome 
   </picture>
 </div>
 
-<br>
+---
 
-| Additional Capability | Details |
-|:---|:---|
-| **Codex-Style UI** | Minimal dark dashboard with collapsible agent sidebar, settings modal, and real-time status |
-| **Obsidian Integration** | Reads and searches your Obsidian vault as a second brain |
-| **MCP Tools** | Filesystem and GitHub operations via Model Context Protocol |
-| **JARVIS Personality** | Witty, British, proactive, and slightly sardonic -- just like the MCU original |
+## Visual System — Apple × OpenAI Codex PC × Hedwig Studio
+
+- **Hedwig Memory Sidebar**: Collapsible left-hand thread manager with spring-animated active pills (`layoutId`), live search filter, turn counts, and persistent session switching.
+- **Concentric Spatial Studio Stage**: Unified top segmented Inspector switcher (`Diffs`, `@ref`, `Vault`, `Traces`, `Term`), custom spring-animated `StudioDropdown` menus (zero native `<select>` elements), and review-before-apply unified diff outbox.
+- **Pure-Avatar Minimal Visor Pet Pill (`JevPetPill.tsx`)**: Hardware-grade bottom-right capsule containing **100% the character's geometric visor face** (zero text inside the capsule, zero split sections) with 60fps GSAP cursor tracking (`gsap.quickTo`), poppy enlarge-and-snap-back physics (`back.out` + `elastic.out`), rubber-band drag resistance, and a 5-bar acoustic harmonic equalizer during voice playback.
+- **Seamless Daylight & Graphite Themes**: Instant toggle between Apple Daylight (`#F5F5F7`) and Pro Graphite (`#09090B`) dark mode.
 
 ---
 
-## Architecture
+## System Architecture
 
 <div align="center">
   <picture>
@@ -57,137 +64,180 @@ Unlike chatbots that just talk, J.A.R.V.I.S **acts** -- it can open your Chrome 
   </picture>
 </div>
 
----
-
-## Quick Start
-
-### Prerequisites
-
-- **Python 3.11+**
-- **Node.js 22+** (for OpenClaw)
-- **FFmpeg** (for audio decoding)
-- **Git**
-- An API key for at least one LLM provider (Gemini, OpenAI, Anthropic, or OpenRouter)
-
-### Installation
-
-```bash
-# Clone the repository
-git clone https://github.com/YOUR_USERNAME/project-jarvis.git
-cd project-jarvis
-
-# Install Python dependencies via uv (recommended)
-pip install uv
-uv sync
-
-# Install Playwright browsers
-uv run playwright install chromium
-
-# Install OpenClaw (optional, for OS control)
-npm install -g openclaw@latest
-
-# Install FFmpeg (Windows)
-winget install Gyan.FFmpeg
 ```
-
-### Configuration
-
-```bash
-# Copy the example environment file
-cp .env.example .env
-
-# Edit .env with your API key
-# Set LLM_PROVIDER to your provider (google, openai, anthropic, openrouter)
-# Set the corresponding API key
-```
-
-Or configure everything from the dashboard UI (Settings gear icon in the sidebar).
-
-### Run
-
-```bash
-uv run jarvis
-```
-
-Open **http://localhost:7779** in your browser. That's it.
-
----
-
-## Usage Examples
-
-| Command | What Happens |
-|:---|:---|
-| "Search for the latest AI news" | Browser agent opens Chrome, searches Google, returns summary |
-| "Open Notepad and type hello world" | OS agent launches Notepad via OpenClaw, types text |
-| "What's the weather in Tokyo?" | Chat agent responds with a natural JARVIS-style answer |
-| "Find my notes about machine learning" | Obsidian agent searches your vault |
-| "List my GitHub repositories" | MCP agent queries the GitHub API |
-
----
-
-## Project Structure
-
-```
-jarvis/
-├── brain/               # LangGraph supervisor + intent classification
-│   ├── supervisor.py    # StateGraph with 5 agent nodes
-│   ├── prompts.py       # JARVIS personality system prompts
-│   └── state.py         # Shared AgentState TypedDict
-├── agents/              # Specialist agents
-│   ├── browser_agent.py # Web automation via browser-use
-│   ├── os_agent.py      # OpenClaw + PyAutoGUI
-│   ├── chat_agent.py    # Conversational LLM
-│   └── obsidian_agent.py
-├── transport/           # Audio pipeline
-│   ├── pipeline.py      # STT → Supervisor → TTS orchestration
-│   ├── tts.py           # Kokoro TTS (local, 82M params)
-│   └── stt.py           # Faster-Whisper STT
-├── dashboard/           # Web UI
-│   ├── server.py        # FastAPI + WebSocket server
-│   └── static/index.html # Codex-style dark UI
-├── memory/              # Conversation persistence
-├── mcp/                 # Model Context Protocol tools
-├── config.py            # Multi-provider settings
-└── main.py              # Entry point
+User Input (Text / WebSocket Binary Audio / @ref Action)
+   │
+   ▼
+[Jev System-1 Fast Reflex Harness (<3ms)]
+   ├──► @e1..@e17 UI Action ────► [vercel-labs/agent-desktop Engine] (Web Sandbox / Local CLI Bridge)
+   ├──► Code Refactor / Patch ──► [Codex Diff Outbox Engine] (Unified diff + Approve / Revert)
+   ├──► Milestones / Deadlines ─► [NŪS Companion Organizer] (Task capture & status sync)
+   ├──► Second Brain Notes ─────► [Obsidian Memory Vault] (Markdown wikilinks, tags & Deep RAG)
+   ├──► GitHub / Files / ArXiv ─► [MCP Tool Client] (Workspace FS, GitHub REST API, ArXiv)
+   ├──► Live Web Grounding ─────► [Browser Grounding Agent] (Google Search + URL Context)
+   └──► Reasoning / Chat ───────► [OpenJarvis System-2 Cognitive Engine] (LRU Cache + Model Cascade)
+                                         │
+                                         ▼
+                        [Neural TTS (gemini-3.8-flash-lite-tts) + Web Speech Hybrid]
 ```
 
 ---
 
-## Supported LLM Providers
+## V3 Technology Stack
 
-| Provider | Model | Configuration |
+| Layer | Technology | Purpose |
 |:---|:---|:---|
-| **Google** | `gemini-3.5-flash` | `GEMINI_API_KEY` |
-| **OpenAI** | `gpt-5` | `OPENAI_API_KEY` |
-| **Anthropic** | `claude-sonnet-5` | `ANTHROPIC_API_KEY` |
-| **OpenRouter** | Any free/paid model | `OPENROUTER_API_KEY` |
-
-Switch providers instantly from the Settings panel in the UI -- no restart needed.
+| **Runtime & Server** | **Node.js 22+**, **Express 4**, **tsx**, **ws** | Full-stack HTTP + WebSocket (`/ws`) server on port `3000` |
+| **Frontend Framework** | **React 19**, **TypeScript 7**, **Vite 8** | Modular spatial studio interface with strict typing |
+| **Styling & Motion** | **Tailwind CSS v4**, **Motion (`motion/react`)**, **GSAP 3.15** | Concentric curvature, spring transitions, and 60fps visor physics |
+| **AI SDK & Models** | **`@google/genai` (`^3.3.0`)** | `gemini-4-hydrogen`, `gemini-3.1-flash-lite`, `gemini-3.5-transcribe`, `gemini-3.8-flash-lite-tts` |
+| **Multi-Provider Support** | **Google Gemini**, **OpenAI**, **Anthropic**, **OpenRouter** | Hot-swappable provider routing with automatic quota circuit-breaker |
+| **Desktop & Memory** | **`agent-desktop` `@ref`**, **Obsidian Markdown**, **JSON Session Store** | Persistent threads (`./data/sessions.json`), vault (`./data/vault`), and code sandbox (`./data/codex-workspace`) |
 
 ---
 
-## Contributing
+## Installation & Quick Start Guide
 
-We welcome contributions! Please:
+### 1. Prerequisites
+- **Node.js 22+** and **npm 10+** (or **Bun**)
+- **Git 2.34+**
+- A **Google Gemini API Key** (`GEMINI_API_KEY`) — or an API key from OpenAI, Anthropic, or OpenRouter
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+### 2. Clone & Install Dependencies
+
+```bash
+# Clone the repository (Release V3)
+git clone https://github.com/ManasSoni-2009/Project-JARVIS.git
+cd Project-JARVIS
+
+# Install all full-stack dependencies
+npm install
+```
+
+### 3. Configure Environment Variables
+
+Copy `.env.example` to `.env` and add your API key(s):
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env`:
+
+```env
+# Primary Intelligence & Voice Key (Required for Gemini LLM, STT, and Neural TTS)
+GEMINI_API_KEY="your_gemini_api_key_here"
+
+# Default Provider: google | openai | anthropic | openrouter
+LLM_PROVIDER="google"
+
+# Neural TTS Persona: Kore | Fenrir | Puck | Charon | Zephyr
+TTS_VOICE="Kore"
+TTS_LANG="en-gb"
+
+# Optional Multi-Provider Keys
+OPENAI_API_KEY=""
+ANTHROPIC_API_KEY=""
+OPENROUTER_API_KEY=""
+
+# Optional GitHub Token (for MCP GitHub tools & automated Release V3 publishing)
+GITHUB_TOKEN=""
+
+# Local Obsidian Second Brain Vault Path
+OBSIDIAN_VAULT_PATH="./data/vault"
+```
+
+### 4. Start the Development Studio Server
+
+```bash
+npm run dev
+```
+
+Open **[http://localhost:3000](http://localhost:3000)** in your browser.
+
+### 5. Production Build & Start
+
+```bash
+# Type-check and compile the production frontend bundle into ./dist
+npm run lint
+npm run build
+
+# Start the production server on port 3000
+NODE_ENV=production npm start
+```
+
+### 6. Run the 14-Point Production Verification & Latency Benchmark Suite
+
+With the server running on port `3000`, execute the automated verification loop:
+
+```bash
+npx tsx scripts/verify-prod-v3.ts
+```
+
+---
+
+## Interactive Prompts & Commands
+
+| Prompt / Command | Subsystem Triggered | What Happens |
+|:---|:---|:---|
+| `"Click @e4 to execute the CI command"` | **Jev Sys-1 → `agent-desktop`** (`1ms` reflex) | Locks onto `@e4`, runs the sandbox CI suite, and updates status node `@e7` |
+| `'Type "npm run verify" into @e3'` | **Jev Sys-1 → `agent-desktop`** (`1ms` reflex) | Focuses textfield `@e3` and types the command string into the runner |
+| `"Click @e12"` | **Jev Sys-1 → `agent-desktop` + Vault** | Commits the NŪS Scratchpad note (`@e10`/`@e11`) directly into the Obsidian Vault |
+| `"Refactor jevReflexRouter.ts to add speculative telemetry"` | **Jev Sys-1 → `codex_diff`** | Synthesizes a unified diff in the Diff Outbox ready for 1-click **Approve** or **Revert** |
+| `"Add task: Complete v3.0 audit by 2026-11-20 high priority"` | **Jev Sys-1 → `nus_organizer`** | Schedules a P0 milestone in the NŪS Companion panel |
+| `"Analyze my Obsidian vault notes about architecture"` | **Jev Sys-1 → `obsidian` RAG** | Searches `./data/vault/*.md` wikilinks and synthesizes insights |
+| `"List files in the workspace repository"` | **Jev Sys-1 → `mcp_tool`** | Dispatches an MCP filesystem/GitHub tool call |
+
+---
+
+## Project Structure (v3.0)
+
+```
+Project-JARVIS/
+├── server.ts                          # Express + WebSocket (/ws) + Vite full-stack entry point (Port 3000)
+├── server/
+│   ├── config.ts                      # Multi-provider LLM client, 5-min quota circuit-breaker & 1ms LRU cache
+│   ├── agentDesktop/
+│   │   └── engine.ts                  # vercel-labs/agent-desktop @e1..@e17 tree & Local CLI Bridge
+│   ├── agents/
+│   │   ├── chatAgent.ts               # Dynamic System-1 / System-2 conversational synthesis
+│   │   ├── browserAgent.ts            # Google Search & URL context grounding agent
+│   │   └── osAgent.ts                 # Desktop vision & OS automation adapter
+│   ├── brain/
+│   │   ├── jevReflex.ts               # <3ms deterministic Jev System-1 Fast Reflex router
+│   │   ├── supervisor.ts              # OpenJarvis 5-Primitive orchestrator & trace recorder
+│   │   ├── prompts.ts                 # J.A.R.V.I.S persona & structured system prompts
+│   │   └── state.ts                   # Shared TypeScript interfaces for traces, diffs, and @refs
+│   ├── codex/
+│   │   └── workspace.ts               # Unified diff generator, patch outbox, apply & revert engine
+│   ├── mcp/
+│   │   └── client.ts                  # Safe workspace filesystem, GitHub API, and ArXiv tools
+│   ├── memory/
+│   │   ├── session.ts                 # Persistent multi-thread store (./data/sessions.json)
+│   │   └── obsidian.ts                # Obsidian markdown vault, wikilink auto-linker & RAG engine
+│   ├── nus/
+│   │   └── organizer.ts               # NŪS Companion milestone & syllabus deadline organizer
+│   └── transport/
+│       ├── pipeline.ts                # Full-duplex event pipeline (STT → Jev → Supervisor → TTS)
+│       ├── tts.ts                     # gemini-3.8-flash-lite-tts + 24kHz WAV harmonic cue generator
+│       └── stt.ts                     # gemini-3.5-transcribe + model failover cascade
+├── src/
+│   ├── App.tsx                        # Hedwig Memory Sidebar + Primary Studio Stage + Voice integration
+│   ├── index.css                      # Tailwind CSS v4 design tokens, scrollbars & micro-interactions
+│   ├── components/
+│   │   ├── JevPetPill.tsx             # 100% pure-avatar minimal visor pill with 60fps GSAP physics
+│   │   ├── CodexWorkbench.tsx         # Modular right-hand Inspector (Diffs, @ref, Vault, Traces)
+│   │   └── StudioDropdown.tsx         # Custom spring-animated popover dropdown component
+│   └── types/
+│       └── jarvis.ts                  # Shared client-side TypeScript definitions
+├── scripts/
+│   └── verify-prod-v3.ts              # 14-point automated verification & latency benchmark runner
+├── RELEASE_V3.md                      # Release V3 architectural specification
+└── package.json                       # v3.0.0 dependencies & scripts
+```
 
 ---
 
 ## License
 
-This project is licensed under the MIT License -- see the [LICENSE](LICENSE) file for details.
-
----
-
-<div align="center">
-
-**Built with passion by the J.A.R.V.I.S community**
-
-*"I do anything and everything that Mr. Stark requires, including occasionally taking out the trash."*
-
-</div>
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.

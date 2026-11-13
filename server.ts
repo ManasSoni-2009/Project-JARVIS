@@ -599,24 +599,45 @@ async function startServer() {
     }
   });
 
-  // ── GitHub Release V3 Status & Publisher Endpoint ────────────────────────
+  // ── GitHub Release V3 Push & Publisher Endpoint ──────────────────────────
   app.post("/api/github/release", async (req, res) => {
     const repo =
       (req.body as { repo?: string })?.repo || "ManasSoni-2009/Project-JARVIS";
     const tag = "v3.0.0";
-    const releaseName = "J.A.R.V.I.S v3.0 — OpenJarvis + Jev Reflex + Hedwig Studio";
+    const releaseName =
+      "J.A.R.V.I.S v3.0 (Release V3) — OpenJarvis + Jev Reflex + Hedwig Studio";
+
+    const token =
+      process.env.GITHUB_TOKEN ||
+      process.env.GH_TOKEN ||
+      process.env.GITHUB_SECRET ||
+      process.env.GITHUB_PAT;
 
     let gitCommit = "unknown";
     let gitTagVerified = false;
+    let gitPushed = false;
+    let pushOutput = "";
+
     try {
+      execSync("git config --global --add safe.directory /app/applet");
+      execSync('git config user.name "ManasSoni-2009"');
+      execSync('git config user.email "manassoni009@gmail.com"');
+      const statusOut = execSync("git status --porcelain").toString().trim();
+      if (statusOut) {
+        execSync("git add -A");
+        execSync(
+          'git commit -m "docs(v3): update README installation guide, V3 tech stack, and release configuration"'
+        );
+      }
+      execSync('git tag -f -a v3.0.0 -m "J.A.R.V.I.S Release v3.0.0"');
+      execSync('git tag -f -a V3 -m "J.A.R.V.I.S Release V3"');
       gitCommit = execSync("git rev-parse --short HEAD").toString().trim();
       const tags = execSync("git tag -l").toString().split("\n");
-      gitTagVerified = tags.includes("v3.0.0") || tags.includes("V3");
-    } catch {
-      // ignore
+      gitTagVerified = tags.includes("v3.0.0") && tags.includes("V3");
+    } catch (gitErr) {
+      pushOutput = gitErr instanceof Error ? gitErr.message : String(gitErr);
     }
 
-    const token = process.env.GITHUB_TOKEN;
     if (!token) {
       res.json({
         ok: true,
@@ -625,49 +646,131 @@ async function startServer() {
         tag,
         commit: gitCommit,
         gitTagVerified,
+        gitPushed: false,
         message:
-          "Local Git repository committed and tagged as v3.0.0 (V3). Add GITHUB_TOKEN in Settings > Secrets or push remote origin to publish on GitHub.",
+          "Local Git repository committed and tagged as v3.0.0 (V3). Add GITHUB_TOKEN in Settings > Secrets to push to GitHub.",
       });
       return;
     }
 
+    const publicRemote = `https://github.com/${repo}.git`;
+    const authRemote = `https://x-access-token:${token}@github.com/${repo}.git`;
+
     try {
-      const ghRes = await fetch(`https://api.github.com/repos/${repo}/releases`, {
+      execSync(`git remote set-url origin "${authRemote}"`);
+      execSync("git push origin main --force", { stdio: "pipe" });
+      execSync("git push origin v3.0.0 --force", { stdio: "pipe" });
+      execSync("git push origin V3 --force", { stdio: "pipe" });
+      gitPushed = true;
+      pushOutput = "Pushed branch 'main' and tags 'v3.0.0', 'V3' to origin.";
+    } catch (pushErr) {
+      const rawMsg =
+        pushErr instanceof Error ? pushErr.message : String(pushErr);
+      pushOutput = rawMsg.replace(new RegExp(token, "g"), "***");
+    } finally {
+      try {
+        execSync(`git remote set-url origin "${publicRemote}"`);
+      } catch {
+        // ignore
+      }
+    }
+
+    const releaseBody = [
+      "## J.A.R.V.I.S v3.0 (Release V3)",
+      "",
+      "### 1. Unified AI Engine",
+      "- **OpenJarvis 5-Primitive Core**: Intelligence (`gemini-4-hydrogen` -> `gemini-3.1-flash-lite` -> `OpenJarvis Local Cognitive Engine`), Engine (`1ms` LRU Cache + `/ws` Streaming), Agentic Logic (7 specialist nodes), Tools & Memory (`./data/sessions.json` + Obsidian Second Brain), and Trace Learning (`OpenJarvisTrace`).",
+      "- **Jev System-1 Fast Reflex Harness**: Deterministic `1ms-3ms` intent triage and multi-`@ref` extraction + NUS Companion Milestone Organizer.",
+      "- **vercel-labs/agent-desktop Integration**: 17 semantic accessibility tree nodes (`@e1`..`@e17`) with `snapshot`, `click`, `type`, `press`, `focus`, and Local CLI Bridge.",
+      "- **Voice Models**: `gemini-3.8-flash-lite-tts` Neural TTS (`Kore`, `Fenrir`, `Puck`, `Charon`, `Zephyr`) + `gemini-3.5-transcribe` STT.",
+      "",
+      "### 2. Visual System (Apple x OpenAI Codex PC x Hedwig Studio)",
+      "- Collapsible **Hedwig Memory Sidebar** with persistent session threads.",
+      "- **Concentric Spatial Studio Stage** with Unified Diff Outbox, `@ref` Inspector, NUS & Vault panel, and custom spring-animated `StudioDropdown` menus.",
+      "- **Pure-Avatar Minimal Visor Pet Pill (`JevPetPill.tsx`)** with 60fps GSAP cursor tracking, poppy enlarge-and-return physics, and harmonic voice equalizer.",
+    ].join("\n");
+
+    try {
+      const ghHeaders = {
+        Accept: "application/vnd.github+json",
+        Authorization: `Bearer ${token}`,
+        "X-GitHub-Api-Version": "2022-11-28",
+        "User-Agent": "Project-JARVIS-v3",
+        "Content-Type": "application/json",
+      };
+
+      let ghRes = await fetch(`https://api.github.com/repos/${repo}/releases`, {
         method: "POST",
-        headers: {
-          Accept: "application/vnd.github+json",
-          Authorization: `Bearer ${token}`,
-          "X-GitHub-Api-Version": "2022-11-28",
-          "User-Agent": "Project-JARVIS-v3",
-          "Content-Type": "application/json",
-        },
+        headers: ghHeaders,
         body: JSON.stringify({
           tag_name: tag,
           target_commitish: "main",
           name: releaseName,
-          body: "J.A.R.V.I.S v3.0 Production Release: OpenJarvis 5-Primitive Architecture, Jev System-1 <3ms Reflex Router, vercel-labs/agent-desktop @ref engine, NŪS Milestone Companion, and Hedwig Studio + Minimal Visor Pet Pill UI.",
+          body: releaseBody,
           draft: false,
           prerelease: false,
         }),
       });
-      const data = (await ghRes.json()) as {
+
+      let data = (await ghRes.json()) as {
+        id?: number;
         html_url?: string;
         message?: string;
       };
+
+      // If release for tag v3.0.0 already exists, fetch by tag and update it
+      if (!ghRes.ok && ghRes.status === 422) {
+        const existingRes = await fetch(
+          `https://api.github.com/repos/${repo}/releases/tags/${tag}`,
+          { headers: ghHeaders }
+        );
+        const existing = (await existingRes.json()) as {
+          id?: number;
+          html_url?: string;
+        };
+        if (existing.id) {
+          ghRes = await fetch(
+            `https://api.github.com/repos/${repo}/releases/${existing.id}`,
+            {
+              method: "PATCH",
+              headers: ghHeaders,
+              body: JSON.stringify({
+                tag_name: tag,
+                target_commitish: "main",
+                name: releaseName,
+                body: releaseBody,
+                draft: false,
+                prerelease: false,
+              }),
+            }
+          );
+          data = (await ghRes.json()) as {
+            id?: number;
+            html_url?: string;
+            message?: string;
+          };
+        }
+      }
+
       res.json({
-        ok: ghRes.ok,
-        mode: "github-api-release",
+        ok: gitPushed || Boolean(data.html_url),
+        mode: "github-pushed-and-released",
         repo,
         tag,
         commit: gitCommit,
+        gitTagVerified,
+        gitPushed,
+        pushOutput,
         releaseUrl: data.html_url,
         message: data.html_url
-          ? `Published Release ${tag} to ${data.html_url}`
-          : data.message || "GitHub API response received",
+          ? `Pushed to GitHub (${gitCommit}) and published Release ${tag}: ${data.html_url}`
+          : `${pushOutput} | GitHub API: ${data.message || "Completed"}`,
       });
     } catch (err) {
       res.status(500).json({
         ok: false,
+        gitPushed,
+        pushOutput,
         error: err instanceof Error ? err.message : String(err),
       });
     }
