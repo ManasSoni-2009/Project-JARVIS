@@ -142,20 +142,48 @@ export interface GenerateLLMOptions {
   responseMimeType?: string;
 }
 
-// Fast in-memory LRU cache to minimize latency on repeated prompts
+// ── Smart Model Quota Circuit-Breaker & Fast LRU Response Cache ───────────
+const modelCooldownUntil = new Map<string, number>();
+const COOLDOWN_DURATION_MS = 5 * 60 * 1000; // 5-minute circuit breaker on 429 quota exhaustion
+
+export function isModelOnCooldown(modelName: string): boolean {
+  const until = modelCooldownUntil.get(modelName);
+  if (!until) return false;
+  if (Date.now() > until) {
+    modelCooldownUntil.delete(modelName);
+    return false;
+  }
+  return true;
+}
+
+export function markModelCooldown(modelName: string, err: unknown): void {
+  const msg = err instanceof Error ? err.message : String(err);
+  if (
+    msg.includes("429") ||
+    msg.includes("RESOURCE_EXHAUSTED") ||
+    msg.includes("Quota exceeded") ||
+    msg.includes("400") ||
+    msg.includes("404")
+  ) {
+    modelCooldownUntil.set(modelName, Date.now() + COOLDOWN_DURATION_MS);
+  }
+}
+
 interface CacheEntry {
   text: string;
   groundingUrls?: Array<{ title: string; uri: string }>;
   expiresAt: number;
 }
 const llmResponseCache = new Map<string, CacheEntry>();
-const CACHE_TTL_MS = 60_000;
+const CACHE_TTL_MS = 90_000;
 
 function makeCacheKey(opts: GenerateLLMOptions): string {
-  const histKey = opts.history
-    ? opts.history.map((m) => `${m.role}:${m.content}`).join("|")
-    : "";
-  return `${opts.systemInstruction?.slice(0, 64) || ""}::${opts.prompt || ""}::${histKey}::${opts.responseMimeType || ""}`;
+  const latestUserMsg =
+    opts.prompt ||
+    (opts.history && opts.history.length > 0
+      ? opts.history[opts.history.length - 1].content
+      : "");
+  return `${opts.systemInstruction?.slice(0, 64) || ""}::${latestUserMsg.trim().toLowerCase()}::${opts.responseMimeType || ""}`;
 }
 
 export async function generateLLMText(opts: GenerateLLMOptions): Promise<{
@@ -211,16 +239,21 @@ export async function generateLLMText(opts: GenerateLLMOptions): Promise<{
     });
   }
 
-  // Google Gemini with automatic cascade (gemini-4-hydrogen -> gemini-3.1-flash-lite -> OpenJarvis Local Edge Engine)
+  // Google Gemini with Smart Cooldown Circuit-Breaker (gemini-4-hydrogen -> gemini-3.1-flash-lite -> OpenJarvis Local Edge Engine)
   const candidateModels = [s.geminiModel, "gemini-3.1-flash-lite"];
 
   for (const modelName of candidateModels) {
+    if (isModelOnCooldown(modelName)) {
+      continue;
+    }
+
     try {
       const ai = getGeminiClient();
       const contents =
         opts.history && opts.history.length > 0
           ? opts.history.map((m) => ({
-              role: m.role === "assistant" ? ("model" as const) : ("user" as const),
+              role:
+                m.role === "assistant" ? ("model" as const) : ("user" as const),
               parts: [{ text: m.content }],
             }))
           : opts.prompt || "";
@@ -290,17 +323,17 @@ export async function generateLLMText(opts: GenerateLLMOptions): Promise<{
           modelUsed: modelName,
         };
       }
-    } catch {
-      // Continue to next model in cascade or local cognitive fallback
+    } catch (err) {
+      markModelCooldown(modelName, err);
     }
   }
 
-  // Resilient OpenJarvis Local Cognitive Synthesis Engine (when API keys hit 429 Free Tier rate limit)
+  // Resilient OpenJarvis Local Cognitive Synthesis Engine
   const fallback = synthesizeLocalOpenJarvisResponse(opts);
   llmResponseCache.set(cacheKey, {
     text: fallback.text,
     groundingUrls: fallback.groundingUrls,
-    expiresAt: Date.now() + 15_000,
+    expiresAt: Date.now() + CACHE_TTL_MS,
   });
   return fallback;
 }
@@ -402,10 +435,17 @@ function synthesizeLocalOpenJarvisResponse(opts: GenerateLLMOptions): {
       return {
         text: JSON.stringify([
           {
-            title: rawInput.slice(0, 72) || "Complete OpenJarvis v3.0 Release Audit",
+            title:
+              rawInput.slice(0, 72) ||
+              "Complete OpenJarvis v3.0 Release Audit",
             courseOrProject: "OpenJarvis Core",
-            dueDate: new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10),
-            priority: lower.includes("high") || lower.includes("urgent") ? "high" : "medium",
+            dueDate: new Date(Date.now() + 3 * 86400000)
+              .toISOString()
+              .slice(0, 10),
+            priority:
+              lower.includes("high") || lower.includes("urgent")
+                ? "high"
+                : "medium",
           },
         ]),
         modelUsed: "openjarvis-local-sys1",
@@ -426,7 +466,9 @@ function synthesizeLocalOpenJarvisResponse(opts: GenerateLLMOptions): {
 
   // 2. Obsidian Vault Deep RAG synthesis
   if (sysLower.includes("obsidian second brain")) {
-    const noteMatches = [...rawInput.matchAll(/### Note:\s*([^\n]+)\n([^\n]+)/g)];
+    const noteMatches = [
+      ...rawInput.matchAll(/### Note:\s*([^\n]+)\n([^\n]+)/g),
+    ];
     const summaryPoints =
       noteMatches.length > 0
         ? noteMatches
@@ -440,7 +482,11 @@ function synthesizeLocalOpenJarvisResponse(opts: GenerateLLMOptions): {
   }
 
   // 3. Browser / Live Grounding synthesis
-  if (opts.useGoogleSearch || opts.useUrlContext || sysLower.includes("browser research")) {
+  if (
+    opts.useGoogleSearch ||
+    opts.useUrlContext ||
+    sysLower.includes("browser research")
+  ) {
     return {
       text: `J.A.R.V.I.S Web Research Summary for **"${rawInput}"**:\n\n• **OpenJarvis 5-Primitive Architecture**: Combines Intelligence, InferenceEngine, Agentic Logic, Tools & Memory, and Trace Learning for local-first and cloud-hybrid agents.\n• **vercel-labs/agent-desktop**: Maps native accessibility trees into deterministic \`@e1\`–\`@e17\` handles for zero-hallucination UI automation.\n• **Jev System-1 Reflex**: Sub-15ms deterministic triage paired with System-2 deep planning.`,
       groundingUrls: [
@@ -458,7 +504,11 @@ function synthesizeLocalOpenJarvisResponse(opts: GenerateLLMOptions): {
   }
 
   // 4. Conversational / Status / Engineering Assistant synthesis
-  if (lower.includes("status") || lower.includes("witty") || lower.includes("report")) {
+  if (
+    lower.includes("status") ||
+    lower.includes("witty") ||
+    lower.includes("report")
+  ) {
     return {
       text: "All five OpenJarvis primitives are humming at 99% efficiency, Jev System-1 reflexes are clocking in under 5 milliseconds, and your 17 desktop `@ref` nodes are standing by, sir.",
       modelUsed: "openjarvis-local-chat",

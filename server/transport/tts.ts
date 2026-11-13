@@ -1,4 +1,9 @@
-import { getGeminiClient, getSettings } from "../config.ts";
+import {
+  getGeminiClient,
+  getSettings,
+  isModelOnCooldown,
+  markModelCooldown,
+} from "../config.ts";
 
 const VALID_GEMINI_VOICES = new Set([
   "Puck",
@@ -30,25 +35,24 @@ export function generateHarmonicCueWavBase64(durationMs = 220): string {
   const dataSize = numSamples * 2;
   const buffer = Buffer.alloc(44 + dataSize);
 
-  // 44-byte RIFF WAV header
   buffer.write("RIFF", 0);
   buffer.writeUInt32LE(36 + dataSize, 4);
   buffer.write("WAVE", 8);
   buffer.write("fmt ", 12);
-  buffer.writeUInt32LE(16, 16); // PCM chunk size
-  buffer.writeUInt16LE(1, 20); // PCM format = 1
-  buffer.writeUInt16LE(1, 22); // Mono = 1 channel
+  buffer.writeUInt32LE(16, 16);
+  buffer.writeUInt16LE(1, 20);
+  buffer.writeUInt16LE(1, 22);
   buffer.writeUInt32LE(sampleRate, 24);
-  buffer.writeUInt32LE(sampleRate * 2, 28); // Byte rate
-  buffer.writeUInt16LE(2, 32); // Block align
-  buffer.writeUInt16LE(16, 34); // Bits per sample
+  buffer.writeUInt32LE(sampleRate * 2, 28);
+  buffer.writeUInt16LE(2, 32);
+  buffer.writeUInt16LE(16, 34);
   buffer.write("data", 36);
   buffer.writeUInt32LE(dataSize, 40);
 
   for (let i = 0; i < numSamples; i++) {
     const t = i / sampleRate;
     const progress = i / numSamples;
-    const freq = progress < 0.5 ? 528 : 660; // C5 -> E5 harmonic interval
+    const freq = progress < 0.5 ? 528 : 660;
     const envelope = Math.sin(Math.PI * progress) * 0.22;
     const sample = Math.sin(2 * Math.PI * freq * t) * envelope;
     const int16 = Math.max(-32768, Math.min(32767, Math.floor(sample * 32767)));
@@ -81,38 +85,41 @@ export class JarvisTTS {
 
     if (!cleanText) return null;
 
-    const voiceName = resolveGeminiVoiceName(s.ttsVoice);
-
-    try {
-      const ai = getGeminiClient();
-      const response = await ai.models.generateContent({
-        model: "gemini-3.8-flash-lite-tts",
-        contents: [
-          {
-            role: "user",
-            parts: [{ text: cleanText }],
-          },
-        ],
-        config: {
-          responseModalities: ["AUDIO"],
-          speechConfig: {
-            voiceConfig: {
-              prebuiltVoiceConfig: { voiceName },
+    const modelName = "gemini-3.8-flash-lite-tts";
+    if (!isModelOnCooldown(modelName)) {
+      const voiceName = resolveGeminiVoiceName(s.ttsVoice);
+      try {
+        const ai = getGeminiClient();
+        const response = await ai.models.generateContent({
+          model: modelName,
+          contents: [
+            {
+              role: "user",
+              parts: [{ text: cleanText }],
+            },
+          ],
+          config: {
+            responseModalities: ["AUDIO"],
+            speechConfig: {
+              voiceConfig: {
+                prebuiltVoiceConfig: { voiceName },
+              },
             },
           },
-        },
-      });
+        });
 
-      const parts = response.candidates?.[0]?.content?.parts ?? [];
-      for (const part of parts) {
-        if (part.inlineData?.data) {
-          this.lastError = null;
-          this.lastProvider = "gemini-3.8-flash-lite-tts";
-          return part.inlineData.data;
+        const parts = response.candidates?.[0]?.content?.parts ?? [];
+        for (const part of parts) {
+          if (part.inlineData?.data) {
+            this.lastError = null;
+            this.lastProvider = "gemini-3.8-flash-lite-tts";
+            return part.inlineData.data;
+          }
         }
+      } catch (err) {
+        markModelCooldown(modelName, err);
+        this.lastError = err instanceof Error ? err.message : String(err);
       }
-    } catch (err) {
-      this.lastError = err instanceof Error ? err.message : String(err);
     }
 
     this.lastProvider = "browser-speech-hybrid";

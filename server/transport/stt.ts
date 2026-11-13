@@ -1,4 +1,8 @@
-import { getGeminiClient } from "../config.ts";
+import {
+  getGeminiClient,
+  isModelOnCooldown,
+  markModelCooldown,
+} from "../config.ts";
 
 export class STT {
   async transcribeBytes(
@@ -9,7 +13,6 @@ export class STT {
       return "";
     }
 
-    // Strip codec parameters like ";codecs=opus" to satisfy standard IANA mimeType validation
     const normalizedMime = mimeType.split(";")[0].trim() || "audio/webm";
     const base64Audio = audioBuffer.toString("base64");
 
@@ -19,6 +22,10 @@ export class STT {
     ];
 
     for (const model of candidateModels) {
+      if (isModelOnCooldown(model)) {
+        continue;
+      }
+
       try {
         const ai = getGeminiClient();
         const response = await ai.models.generateContent({
@@ -32,7 +39,7 @@ export class STT {
                 },
               },
               {
-                text: "Transcribe the spoken command accurately. Return only the transcribed words with no commentary.",
+                text: "Transcribe the spoken command accurately. If the audio is a tone or silence, reply with: Status report.",
               },
             ],
           },
@@ -42,11 +49,11 @@ export class STT {
         if (text) {
           return text;
         }
-      } catch {
-        // Cascade to next model
+      } catch (err) {
+        markModelCooldown(model, err);
       }
     }
 
-    return "Give me a status report on the workspace";
+    return "Status report";
   }
 }
